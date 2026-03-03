@@ -55,7 +55,7 @@ actor PhotoLibraryService {
             results.append(ScreenshotFetchResult(
                 localIdentifier: asset.localIdentifier,
                 creationDate: asset.creationDate,
-                addedToLibraryDate: asset.creationDate ?? Date()
+                addedToLibraryDate: Date()
             ))
         }
 

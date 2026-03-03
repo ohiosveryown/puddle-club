@@ -194,6 +194,9 @@ private struct ScreenshotPageView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
         }
+        .shadow(color: .black.opacity(0.09), radius: 80, x: 0, y: 15)
+        .shadow(color: .black.opacity(0.05), radius: 18, x: 0, y: 4)
+        .shadow(color: .black.opacity(0.036), radius: 5, x: 0, y: 1)
         .padding(.horizontal, 12)
         .padding(.top, 64)
         .frame(maxWidth: .infinity, alignment: .center)
