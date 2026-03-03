@@ -195,7 +195,7 @@ private struct ScreenshotPageView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.top, 32)
+        .padding(.top, 64)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
