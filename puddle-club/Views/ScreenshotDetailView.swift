@@ -77,6 +77,11 @@ struct ScreenshotDetailView: View {
         screenshots.firstIndex(where: { $0.localIdentifier == currentLocalIdentifier })
     }
 
+    private func createdDateString(for shot: Screenshot) -> String {
+        let date = shot.creationDate ?? shot.addedToLibraryDate
+        return date.formatted(.dateTime.month(.abbreviated).day().year())
+    }
+
     var body: some View {
         TabView(selection: $currentLocalIdentifier) {
             ForEach(screenshots) { shot in
@@ -85,7 +90,6 @@ struct ScreenshotDetailView: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .navigationTitle(currentScreenshot.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .ignoresSafeArea(edges: .top)
@@ -93,6 +97,15 @@ struct ScreenshotDetailView: View {
             HeaderBlurOverlay()
         }
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 2) {
+                    Text(currentScreenshot.displayTitle)
+                        .font(.headline)
+                    Text(createdDateString(for: currentScreenshot))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(role: .destructive) { confirmDelete = true } label: {
                     Image(systemName: "trash")
