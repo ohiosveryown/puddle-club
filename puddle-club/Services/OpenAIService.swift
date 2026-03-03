@@ -6,9 +6,10 @@ struct OpenAIClassificationResult: Sendable, Decodable {
     let contentTypeConfidence: Double
     let entities: [OpenAIEntity]
     let tags: [String]
-    let aestheticDescription: String
+    let reflection: String
     let dominantColors: [String]
     let moodTags: [String]
+    let aestheticNotes: [String]
 
     nonisolated init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -17,14 +18,15 @@ struct OpenAIClassificationResult: Sendable, Decodable {
         contentTypeConfidence = try c.decode(Double.self, forKey: .contentTypeConfidence)
         entities = try c.decode([OpenAIEntity].self, forKey: .entities)
         tags = try c.decode([String].self, forKey: .tags)
-        aestheticDescription = try c.decode(String.self, forKey: .aestheticDescription)
+        reflection = try c.decode(String.self, forKey: .reflection)
         dominantColors = try c.decode([String].self, forKey: .dominantColors)
         moodTags = try c.decode([String].self, forKey: .moodTags)
+        aestheticNotes = try c.decodeIfPresent([String].self, forKey: .aestheticNotes) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
         case title, contentType, contentTypeConfidence, entities, tags
-        case aestheticDescription, dominantColors, moodTags
+        case reflection, dominantColors, moodTags, aestheticNotes
     }
 }
 
@@ -53,11 +55,14 @@ actor OpenAIService {
 
     private let systemPrompt = """
         Return ONLY valid JSON with keys: title, contentType, contentTypeConfidence, \
-        entities [{name, type, confidence}], tags, aestheticDescription, dominantColors, moodTags. \
+        entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes. \
         title should be a concise name for the subject (e.g. "Carlsbad Flower Fields", "Kendrick Lamar", "Nike Air Max 90"). \
-        aestheticDescription should be 1–2 sentences, written directly to the user in the second person ("you"), \
+        reflection should be 1–2 sentences, written directly to the user in the second person ("you"), \
         as a personal, reflective note about why this screenshot might matter to them or how it fits into their life. \
-        Focus on mood and the user's relationship to the content, not a dry summary of what's on screen.
+        Focus on mood and the user's relationship to the content, not a dry summary of what's on screen. \
+        aestheticNotes should be an array of 1–4 short phrases (e.g. "1980s film", "Organic forms", \
+        "Art book layout energy", "Museum-catalog feel") that describe the overall aesthetic and visual/typographic vibe, \
+        based on the image and any OCR text.
         """
 
     func classifyText(ocrText: String, nlpEntities: [RawEntity]) async throws -> OpenAIClassificationResult {

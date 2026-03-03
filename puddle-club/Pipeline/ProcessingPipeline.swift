@@ -217,9 +217,10 @@ actor ProcessingPipeline {
                 // Map result → model
                 screenshot.title = generateTitle(from: result, for: screenshot)
                 screenshot.contentType = result.contentType
-                screenshot.aestheticDescription = result.aestheticDescription
+                screenshot.reflection = result.reflection
                 screenshot.dominantColors = result.dominantColors
                 screenshot.moodTags = result.moodTags
+                screenshot.aestheticNotes = result.aestheticNotes
                 screenshot.openAIProcessedAt = Date()
                 screenshot.processingStatus = ProcessingStatus.complete.rawValue
 

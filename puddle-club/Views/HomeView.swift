@@ -69,8 +69,8 @@ private struct ScreenshotRow: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
-            if let description = screenshot.aestheticDescription {
-                Text(description)
+            if let reflection = screenshot.reflection {
+                Text(reflection)
                     .font(.caption)
                     .lineLimit(2)
                     .foregroundStyle(.secondary)

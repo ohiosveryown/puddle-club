@@ -15,9 +15,10 @@ final class Screenshot {
     var screenshotMode: String?
     var title: String?
     var contentType: String?
-    var aestheticDescription: String?
+    var reflection: String?
     var dominantColors: [String]
     var moodTags: [String]
+    var aestheticNotes: [String]?
     var openAIProcessedAt: Date?
     @Relationship(deleteRule: .cascade) var entities: [ScreenshotEntity]
     @Relationship(deleteRule: .cascade) var tags: [ScreenshotTag]
@@ -32,6 +33,7 @@ final class Screenshot {
         self.ocrWordCount = 0
         self.dominantColors = []
         self.moodTags = []
+        self.aestheticNotes = []
         self.entities = []
         self.tags = []
     }

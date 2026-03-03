@@ -124,6 +124,16 @@ private struct ScreenshotPageView: View {
                 // MARK: Image
                 imageSection
 
+                // MARK: Overall aesthetic (values only)
+                if let notes = screenshot.aestheticNotes, !notes.isEmpty {
+                    let topNotes = Array(notes.prefix(2))
+                    Text(topNotes.joined(separator: " · "))
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                }
+
                 VStack(alignment: .leading, spacing: 0) {
 
                     // MARK: Primary action
@@ -141,14 +151,14 @@ private struct ScreenshotPageView: View {
                         .padding(.bottom, 24)
                     }
 
-                    // MARK: Aesthetic
-                    if let desc = screenshot.aestheticDescription {
+                    // MARK: Reflection
+                    if let desc = screenshot.reflection {
                         section {
                             Text(desc)
                                 .font(.body)
                                 .fixedSize(horizontal: false, vertical: true)
                         } header: {
-                            sectionLabel("Aesthetic", icon: "sparkles")
+                            sectionLabel("Reflection", icon: "sparkles")
                         }
                     }
 
