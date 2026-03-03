@@ -114,6 +114,9 @@ private struct ScreenshotPageView: View {
 
     @State private var image: UIImage? = nil
 
+    // Image layout
+    private var imageMaxHeight: CGFloat { UIScreen.main.bounds.height * 0.7 } // ≈ max-height: 70vh
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -167,18 +170,33 @@ private struct ScreenshotPageView: View {
 
     @ViewBuilder
     private var imageSection: some View {
-        if let image {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity)
-        } else {
-            Rectangle()
-                .fill(.secondary.opacity(0.1))
-                .frame(maxWidth: .infinity)
-                .frame(height: 320)
-                .overlay { ProgressView() }
+        Group {
+            if let image {
+                // Match CSS: max-height: 70vh; width: auto; object-fit: contain
+                let maxWidth = UIScreen.main.bounds.width - 24 // 12pt padding each side
+                let maxHeight = imageMaxHeight
+                let originalSize = image.size
+                let widthScale = maxWidth / originalSize.width
+                let heightScale = maxHeight / originalSize.height
+                let scale = min(widthScale, heightScale)
+                let targetWidth = originalSize.width * scale
+                let targetHeight = originalSize.height * scale
+
+                Image(uiImage: image)
+                    .resizable()
+                    .frame(width: targetWidth, height: targetHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            } else {
+                Rectangle()
+                    .fill(.secondary.opacity(0.1))
+                    .frame(height: min(CGFloat(320), imageMaxHeight))
+                    .overlay { ProgressView() }
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            }
         }
+        .padding(.horizontal, 12)
+        .padding(.top, 32)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     @ViewBuilder
