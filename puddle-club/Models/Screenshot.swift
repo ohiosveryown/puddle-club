@@ -1,0 +1,37 @@
+import SwiftData
+import Foundation
+
+@Model
+final class Screenshot {
+    @Attribute(.unique) var localIdentifier: String
+    var creationDate: Date?
+    var addedToLibraryDate: Date
+    var processingStatus: String
+    var processingAttempts: Int
+    var errorMessage: String?
+    var ocrText: String?
+    var ocrConfidence: Double
+    var ocrWordCount: Int
+    var screenshotMode: String?
+    var contentType: String?
+    var aestheticDescription: String?
+    var dominantColors: [String]
+    var moodTags: [String]
+    var openAIProcessedAt: Date?
+    @Relationship(deleteRule: .cascade) var entities: [ScreenshotEntity]
+    @Relationship(deleteRule: .cascade) var tags: [ScreenshotTag]
+
+    init(localIdentifier: String, creationDate: Date? = nil, addedToLibraryDate: Date = Date()) {
+        self.localIdentifier = localIdentifier
+        self.creationDate = creationDate
+        self.addedToLibraryDate = addedToLibraryDate
+        self.processingStatus = ProcessingStatus.pending.rawValue
+        self.processingAttempts = 0
+        self.ocrConfidence = 0.0
+        self.ocrWordCount = 0
+        self.dominantColors = []
+        self.moodTags = []
+        self.entities = []
+        self.tags = []
+    }
+}
