@@ -5,20 +5,32 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var screenshots: [Screenshot]
 
+    @Binding var searchText: String
+
     @State private var pipelineState = PipelineState()
     // Hold a strong reference so the actor isn't released mid-run
     @State private var pipeline: ProcessingPipeline?
 
+    var filteredScreenshots: [Screenshot] {
+        guard !searchText.isEmpty else { return screenshots }
+        let q = searchText.lowercased()
+        return screenshots.filter {
+            ($0.displayTitle.lowercased().contains(q)) ||
+            ($0.reflection?.lowercased().contains(q) ?? false) ||
+            ($0.tags.contains(where: { tag in tag.value.lowercased().contains(q) }))
+        }
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                ForEach(screenshots) { screenshot in
+                ForEach(filteredScreenshots) { screenshot in
                     NavigationLink(destination: ScreenshotDetailView(screenshot: screenshot)) {
                         ScreenshotRow(screenshot: screenshot)
                     }
                 }
                 .onDelete { offsets in
-                    for i in offsets { modelContext.delete(screenshots[i]) }
+                    for i in offsets { modelContext.delete(filteredScreenshots[i]) }
                     try? modelContext.save()
                 }
             }
@@ -49,6 +61,43 @@ struct HomeView: View {
         let p = ProcessingPipeline(container: container, state: pipelineState)
         pipeline = p
         Task { await p.run() }
+    }
+}
+
+// MARK: - Floating Search Bar
+
+struct FloatingSearchBar: View {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(.white)
+                .frame(width: 8, height: 8)
+
+            TextField(text: $text, prompt: Text("Search or ask a question...").foregroundStyle(.white.opacity(0.55))) { }
+                .focused($focused)
+                .foregroundStyle(.white)
+
+            Spacer()
+
+            Button {
+                // placeholder — voice input in future
+            } label: {
+                Image(systemName: "waveform")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.black.opacity(0.6))
+                    .frame(width: 36, height: 36)
+                    .background(.white, in: Circle())
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .glassEffect(in: Capsule())
+        .onChange(of: focused) { _, new in isFocused = new }
+        .onChange(of: isFocused) { _, new in focused = new }
     }
 }
 
