@@ -44,7 +44,8 @@ actor PhotoLibraryService {
             format: "mediaSubtype & %d != 0",
             PHAssetMediaSubtype.photoScreenshot.rawValue
         )
-        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        // Process screenshots in the order they were created (oldest first)
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
 
         let assets = PHAsset.fetchAssets(with: .image, options: options)
         var results: [ScreenshotFetchResult] = []

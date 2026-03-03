@@ -3,7 +3,7 @@ import SwiftData
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var screenshots: [Screenshot]
+    @Query(sort: \Screenshot.addedToLibraryDate, order: .forward) private var screenshots: [Screenshot]
 
     @State private var pipelineState = PipelineState()
     // Hold a strong reference so the actor isn't released mid-run
