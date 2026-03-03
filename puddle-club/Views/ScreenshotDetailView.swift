@@ -87,7 +87,11 @@ struct ScreenshotDetailView: View {
         .tabViewStyle(.page(indexDisplayMode: .never))
         .navigationTitle(currentScreenshot.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .ignoresSafeArea(edges: .top)
+        .overlay(alignment: .top) {
+            HeaderBlurOverlay()
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(role: .destructive) { confirmDelete = true } label: {
@@ -105,6 +109,39 @@ struct ScreenshotDetailView: View {
         }
     }
 
+}
+
+// MARK: - Header blur overlay
+
+private struct HeaderBlurOverlay: View {
+    var body: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .overlay(
+                LinearGradient(
+                    colors: [
+                        .black.opacity(0.25),
+                        .black.opacity(0.08),
+                        .clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .mask(
+                LinearGradient(
+                    colors: [
+                        .white,
+                        .white,
+                        .clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(height: 140)
+            .ignoresSafeArea(edges: .top)
+    }
 }
 
 // MARK: - Per-screenshot page content
