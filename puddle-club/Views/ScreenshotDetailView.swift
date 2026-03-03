@@ -69,7 +69,7 @@ struct ScreenshotDetailView: View {
                 // MARK: Image
                 imageSection
 
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 0) {
 
                     // MARK: Primary action
                     if let action = primaryAction, let url = action.url {
@@ -77,66 +77,37 @@ struct ScreenshotDetailView: View {
                             Label(action.label, systemImage: action.icon)
                                 .font(.subheadline.weight(.medium))
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
+                                .padding(.vertical, 13)
                                 .background(.tint)
                                 .foregroundStyle(.white)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
+                        .padding(.horizontal)
+                        .padding(.bottom, 24)
                     }
 
-                    // MARK: Aesthetic description
+                    // MARK: Aesthetic
                     if let desc = screenshot.aestheticDescription {
-                        VStack(alignment: .leading, spacing: 6) {
-                            sectionLabel("Aesthetic", icon: "sparkles")
+                        section {
                             Text(desc)
                                 .font(.body)
-                        }
-                    }
-
-                    // MARK: Content type
-                    if let contentType = screenshot.contentType {
-                        VStack(alignment: .leading, spacing: 6) {
-                            sectionLabel("Content", icon: "square.grid.2x2")
-                            Text(contentType.capitalized)
-                                .font(.subheadline)
-                        }
-                    }
-
-                    // MARK: Entities
-                    let openAIEntities = screenshot.entities.filter { $0.source == "openai" }
-                    if !openAIEntities.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            sectionLabel("Entities", icon: "person.text.rectangle")
-                            TagCloud(items: openAIEntities.map { "\($0.name) · \($0.entityType)" })
+                                .fixedSize(horizontal: false, vertical: true)
+                        } header: {
+                            sectionLabel("Aesthetic", icon: "sparkles")
                         }
                     }
 
                     // MARK: Tags
                     if !screenshot.tags.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            sectionLabel("Tags", icon: "tag")
+                        section {
                             TagCloud(items: screenshot.tags.map { $0.value })
+                        } header: {
+                            sectionLabel("Tags", icon: "tag")
                         }
                     }
 
-                    // MARK: Mood
-                    if !screenshot.moodTags.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            sectionLabel("Mood", icon: "heart.text.square")
-                            TagCloud(items: screenshot.moodTags)
-                        }
-                    }
-
-                    // MARK: Colors
-                    if !screenshot.dominantColors.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            sectionLabel("Colors", icon: "paintpalette")
-                            TagCloud(items: screenshot.dominantColors)
-                        }
-                    }
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 24)
+                .padding(.bottom, 32)
             }
         }
         .navigationTitle("")
@@ -178,9 +149,22 @@ struct ScreenshotDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private func section<Header: View, Content: View>(
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder header: () -> Header
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            header()
+            content()
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 24)
+    }
+
     private func sectionLabel(_ title: String, icon: String) -> some View {
         Label(title, systemImage: icon)
-            .font(.caption)
+            .font(.caption.weight(.medium))
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
     }
@@ -317,74 +301,58 @@ private struct TagCloud: View {
     let items: [String]
 
     var body: some View {
-        // Wrap tags using a flowing layout via fixed-width measurement
-        GeometryReader { geo in
-            self.generateContent(in: geo)
-        }
-        .frame(height: height)
-    }
-
-    // Pre-compute rows to know the height (uses 358pt — standard iPhone content width)
-    private var rows: [[String]] {
-        var rows: [[String]] = [[]]
-        var currentWidth: CGFloat = 0
-        let maxWidth: CGFloat = 358
-        let spacing: CGFloat = 8
-
-        for item in items {
-            let itemWidth = itemSize(item)
-            if currentWidth + itemWidth + spacing > maxWidth && !rows.last!.isEmpty {
-                rows.append([item])
-                currentWidth = itemWidth
-            } else {
-                rows[rows.endIndex - 1].append(item)
-                currentWidth += itemWidth + spacing
+        FlowLayout(spacing: 8) {
+            ForEach(items, id: \.self) { item in
+                Text(item)
+                    .font(.caption)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.secondary.opacity(0.12))
+                    .clipShape(Capsule())
             }
         }
-        return rows
+    }
+}
+
+// MARK: - Flow layout (iOS 16+)
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        place(subviews: subviews, in: proposal.width ?? 0).size
     }
 
-    private var height: CGFloat {
-        CGFloat(rows.count) * 30 + CGFloat(max(rows.count - 1, 0)) * 8
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = place(subviews: subviews, in: bounds.width)
+        for (subview, frame) in zip(subviews, result.frames) {
+            subview.place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                proposal: ProposedViewSize(frame.size)
+            )
+        }
     }
 
-    private func itemSize(_ text: String) -> CGFloat {
-        let font = UIFont.systemFont(ofSize: 12)
-        let size = (text as NSString).size(withAttributes: [.font: font])
-        return size.width + 20 // horizontal padding
-    }
+    private struct Result { var frames: [CGRect]; var size: CGSize }
 
-    private func generateContent(in geo: GeometryProxy) -> some View {
+    private func place(subviews: Subviews, in maxWidth: CGFloat) -> Result {
+        var frames: [CGRect] = []
         var x: CGFloat = 0
         var y: CGFloat = 0
-        let spacing: CGFloat = 8
-        let rowHeight: CGFloat = 28
+        var rowHeight: CGFloat = 0
 
-        return ZStack(alignment: .topLeading) {
-            ForEach(items, id: \.self) { item in
-                let width = itemSize(item)
-                pill(item)
-                    .alignmentGuide(.leading) { _ in
-                        let result = -x
-                        if x + width + spacing > geo.size.width {
-                            x = width + spacing
-                            y += rowHeight + spacing
-                        } else {
-                            x += width + spacing
-                        }
-                        return result
-                    }
-                    .alignmentGuide(.top) { _ in -y }
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth, x > 0 {
+                y += rowHeight + spacing
+                x = 0
+                rowHeight = 0
             }
+            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
         }
-    }
 
-    private func pill(_ text: String) -> some View {
-        Text(text)
-            .font(.caption)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(.secondary.opacity(0.12))
-            .clipShape(Capsule())
+        return Result(frames: frames, size: CGSize(width: maxWidth, height: y + rowHeight))
     }
 }
