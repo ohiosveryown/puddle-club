@@ -61,6 +61,13 @@ private struct ScrollOffsetKey: PreferenceKey {
     }
 }
 
+private struct ViewportSizeKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+}
+
 // MARK: - Detail view
 
 struct ScreenshotDetailView: View {
@@ -189,9 +196,14 @@ private struct ScreenshotPageView: View {
     @Binding var scrollProgress: CGFloat
 
     @State private var image: UIImage? = nil
+    @State private var viewportSize: CGSize = .zero
+    @ScaledMetric(relativeTo: .footnote) private var aestheticNotesFontSize: CGFloat = 13
 
-    // Image layout
-    private var imageMaxHeight: CGFloat { UIScreen.main.bounds.height * 0.7 } // ≈ max-height: 70vh
+    // Image layout (uses viewport from GeometryReader to avoid UIScreen.main)
+    private var imageMaxHeight: CGFloat {
+        let h = viewportSize.height > 0 ? viewportSize.height : 600
+        return h * 0.7
+    }
 
     private let scrollTransitionDistance: CGFloat = 80
 
@@ -206,7 +218,8 @@ private struct ScreenshotPageView: View {
                 if let notes = screenshot.aestheticNotes, !notes.isEmpty {
                     let topNotes = Array(notes.prefix(2))
                     Text(topNotes.joined(separator: " · "))
-                        .font(.footnote.weight(.medium))
+                        .font(.system(size: aestheticNotesFontSize, weight: .regular, design: .serif))
+                        .tracking(-0.25)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
@@ -263,6 +276,12 @@ private struct ScreenshotPageView: View {
             )
         }
         .coordinateSpace(name: "scroll")
+        .background(
+            GeometryReader { geo in
+                Color.clear.preference(key: ViewportSizeKey.self, value: geo.size)
+            }
+        )
+        .onPreferenceChange(ViewportSizeKey.self) { viewportSize = $0 }
         .onPreferenceChange(ScrollOffsetKey.self) { minY in
             // minY is content top in scroll space: 0 at top, negative when scrolled down
             let progress = minY <= 0 ? min(1, -minY / scrollTransitionDistance) : 0
@@ -276,7 +295,8 @@ private struct ScreenshotPageView: View {
         Group {
             if let image {
                 // Match CSS: max-height: 70vh; width: auto; object-fit: contain
-                let maxWidth = UIScreen.main.bounds.width - 24 // 12pt padding each side
+                let availableWidth = viewportSize.width > 0 ? viewportSize.width : 400
+                let maxWidth = availableWidth - 24 // 12pt padding each side
                 let maxHeight = imageMaxHeight
                 let originalSize = image.size
                 let widthScale = maxWidth / originalSize.width
