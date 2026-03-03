@@ -46,6 +46,7 @@ struct OpenAIEntity: Sendable, Decodable {
 }
 
 actor OpenAIService {
+    // model
     private let textModel = "gpt-4.1-mini"
     private let visionModel = "gpt-4.1"
     private let baseURL = URL(string: "https://api.openai.com/v1/chat/completions")!
