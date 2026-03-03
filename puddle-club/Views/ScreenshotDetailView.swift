@@ -98,11 +98,11 @@ struct ScreenshotDetailView: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                VStack(spacing: 2) {
+                VStack(spacing: 3) {
                     Text(currentScreenshot.displayTitle)
                         .font(.headline)
                     Text(createdDateString(for: currentScreenshot))
-                        .font(.subheadline)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
