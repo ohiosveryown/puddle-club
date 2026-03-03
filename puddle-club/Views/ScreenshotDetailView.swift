@@ -52,6 +52,15 @@ enum ScreenshotAction {
     }
 }
 
+// MARK: - Scroll offset preference
+
+private struct ScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 // MARK: - Detail view
 
 struct ScreenshotDetailView: View {
@@ -61,6 +70,7 @@ struct ScreenshotDetailView: View {
     @Query(sort: \Screenshot.addedToLibraryDate, order: .forward) private var screenshots: [Screenshot]
     @Environment(\.dismiss) private var dismiss
     @State private var confirmDelete = false
+    @State private var scrollProgress: CGFloat = 0
 
     @State private var currentLocalIdentifier: String
 
@@ -82,11 +92,25 @@ struct ScreenshotDetailView: View {
         return date.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
+    @ViewBuilder
+    private var dateLabel: some View {
+        let dateText = createdDateString(for: currentScreenshot)
+        ZStack {
+            Text(dateText)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.secondary)
+            Text(dateText)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.primary)
+                .opacity(scrollProgress)
+        }
+    }
+
     var body: some View {
         TabView(selection: $currentLocalIdentifier) {
             ForEach(screenshots) { shot in
-                ScreenshotPageView(screenshot: shot)
-                .tag(shot.localIdentifier)
+                ScreenshotPageView(screenshot: shot, scrollProgress: $scrollProgress)
+                    .tag(shot.localIdentifier)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
@@ -94,16 +118,14 @@ struct ScreenshotDetailView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .ignoresSafeArea(edges: .top)
         .overlay(alignment: .top) {
-            HeaderBlurOverlay()
+            HeaderBlurOverlay(progress: scrollProgress)
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 3) {
                     Text(currentScreenshot.displayTitle)
                         .font(.headline)
-                    Text(createdDateString(for: currentScreenshot))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    dateLabel
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -127,14 +149,17 @@ struct ScreenshotDetailView: View {
 // MARK: - Header blur overlay
 
 private struct HeaderBlurOverlay: View {
+    /// 0 = no overlay, 1 = fully active
+    let progress: CGFloat
+
     var body: some View {
         Rectangle()
             .fill(.ultraThinMaterial)
             .overlay(
                 LinearGradient(
                     colors: [
-                        .black.opacity(0.25),
-                        .black.opacity(0.08),
+                        Color.black.opacity(0.12 + 0.99 * progress),
+                        Color.black.opacity(0.04 + 0.08 * progress),
                         .clear
                     ],
                     startPoint: .top,
@@ -152,7 +177,7 @@ private struct HeaderBlurOverlay: View {
                     endPoint: .bottom
                 )
             )
-            .frame(height: 140)
+            .frame(height: 170)
             .ignoresSafeArea(edges: .top)
     }
 }
@@ -161,11 +186,14 @@ private struct HeaderBlurOverlay: View {
 
 private struct ScreenshotPageView: View {
     let screenshot: Screenshot
+    @Binding var scrollProgress: CGFloat
 
     @State private var image: UIImage? = nil
 
     // Image layout
     private var imageMaxHeight: CGFloat { UIScreen.main.bounds.height * 0.7 } // ≈ max-height: 70vh
+
+    private let scrollTransitionDistance: CGFloat = 80
 
     var body: some View {
         ScrollView {
@@ -224,6 +252,21 @@ private struct ScreenshotPageView: View {
                 }
                 .padding(.bottom, 32)
             }
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .preference(
+                            key: ScrollOffsetKey.self,
+                            value: geo.frame(in: .named("scroll")).minY
+                        )
+                }
+            )
+        }
+        .coordinateSpace(name: "scroll")
+        .onPreferenceChange(ScrollOffsetKey.self) { minY in
+            // minY is content top in scroll space: 0 at top, negative when scrolled down
+            let progress = minY <= 0 ? min(1, -minY / scrollTransitionDistance) : 0
+            scrollProgress = progress
         }
         .onAppear(perform: loadImage)
     }
