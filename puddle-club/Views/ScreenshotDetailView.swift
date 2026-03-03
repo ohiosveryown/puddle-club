@@ -110,7 +110,7 @@ struct ScreenshotDetailView: View {
                 .padding(.bottom, 32)
             }
         }
-        .navigationTitle("")
+        .navigationTitle(screenshot.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .ignoresSafeArea(edges: .top)
         .onAppear { loadImage() }

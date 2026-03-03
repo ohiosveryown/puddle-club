@@ -5,7 +5,7 @@ enum KeychainService {
     private static let service = "proportional.design.puddle-club"
     private static let apiKeyAccount = "openai-api-key"
 
-    static func saveAPIKey(_ key: String) throws {
+    nonisolated static func saveAPIKey(_ key: String) throws {
         let data = Data(key.utf8)
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -27,7 +27,7 @@ enum KeychainService {
         }
     }
 
-    static func loadAPIKey() throws -> String {
+    nonisolated static func loadAPIKey() throws -> String {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
@@ -45,7 +45,7 @@ enum KeychainService {
         return key
     }
 
-    static func deleteAPIKey() throws {
+    nonisolated static func deleteAPIKey() throws {
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,

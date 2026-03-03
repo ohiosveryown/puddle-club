@@ -215,6 +215,7 @@ actor ProcessingPipeline {
                 }
 
                 // Map result → model
+                screenshot.title = generateTitle(from: result, for: screenshot)
                 screenshot.contentType = result.contentType
                 screenshot.aestheticDescription = result.aestheticDescription
                 screenshot.dominantColors = result.dominantColors
@@ -258,5 +259,47 @@ actor ProcessingPipeline {
         }
 
         screenshot.processingStatus = ProcessingStatus.skipped.rawValue
+    }
+
+    // MARK: - Title generation
+
+    private func generateTitle(from result: OpenAIClassificationResult, for screenshot: Screenshot) -> String {
+        // Respect any existing title (e.g. user-edited)
+        if let existing = screenshot.title, !existing.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return existing
+        }
+
+        let trimmedTitle = result.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTitle.isEmpty {
+            return trimmedTitle
+        }
+
+        // Fallbacks: derive from URL + tags, then content type, then identifier
+        let urlHost = screenshot.ocrText
+            .flatMap { firstURL(in: $0) }
+            .flatMap { $0.host }
+            .map { host in
+                host.replacingOccurrences(of: #"^www\."#, with: "", options: .regularExpression)
+            }
+
+        if let host = urlHost {
+            if let tag = result.tags.first(where: { !$0.isEmpty }) {
+                return "\(host) · \(tag)"
+            }
+            return host
+        }
+
+        if let type = ContentType(rawValue: result.contentType) {
+            return type.rawValue.capitalized
+        }
+
+        return "Screenshot"
+    }
+
+    private func firstURL(in text: String) -> URL? {
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        return detector.firstMatch(in: text, options: [], range: range)
+            .flatMap { $0.url }
     }
 }

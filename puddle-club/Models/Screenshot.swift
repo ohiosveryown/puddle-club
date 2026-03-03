@@ -13,6 +13,7 @@ final class Screenshot {
     var ocrConfidence: Double
     var ocrWordCount: Int
     var screenshotMode: String?
+    var title: String?
     var contentType: String?
     var aestheticDescription: String?
     var dominantColors: [String]
@@ -33,5 +34,17 @@ final class Screenshot {
         self.moodTags = []
         self.entities = []
         self.tags = []
+    }
+}
+
+extension Screenshot {
+    var displayTitle: String {
+        if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return title
+        }
+        if let contentType, !contentType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return contentType
+        }
+        return String(localIdentifier.prefix(8))
     }
 }

@@ -1,6 +1,7 @@
 import Foundation
 
 struct OpenAIClassificationResult: Sendable, Decodable {
+    let title: String
     let contentType: String
     let contentTypeConfidence: Double
     let entities: [OpenAIEntity]
@@ -8,12 +9,40 @@ struct OpenAIClassificationResult: Sendable, Decodable {
     let aestheticDescription: String
     let dominantColors: [String]
     let moodTags: [String]
+
+    nonisolated init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        title = try c.decode(String.self, forKey: .title)
+        contentType = try c.decode(String.self, forKey: .contentType)
+        contentTypeConfidence = try c.decode(Double.self, forKey: .contentTypeConfidence)
+        entities = try c.decode([OpenAIEntity].self, forKey: .entities)
+        tags = try c.decode([String].self, forKey: .tags)
+        aestheticDescription = try c.decode(String.self, forKey: .aestheticDescription)
+        dominantColors = try c.decode([String].self, forKey: .dominantColors)
+        moodTags = try c.decode([String].self, forKey: .moodTags)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case title, contentType, contentTypeConfidence, entities, tags
+        case aestheticDescription, dominantColors, moodTags
+    }
 }
 
 struct OpenAIEntity: Sendable, Decodable {
     let name: String
     let type: String
     let confidence: Double
+
+    nonisolated init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        type = try c.decode(String.self, forKey: .type)
+        confidence = try c.decode(Double.self, forKey: .confidence)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name, type, confidence
+    }
 }
 
 actor OpenAIService {
@@ -22,8 +51,9 @@ actor OpenAIService {
     private let baseURL = URL(string: "https://api.openai.com/v1/chat/completions")!
 
     private let systemPrompt = """
-        Return ONLY valid JSON with keys: contentType, contentTypeConfidence, \
+        Return ONLY valid JSON with keys: title, contentType, contentTypeConfidence, \
         entities [{name, type, confidence}], tags, aestheticDescription, dominantColors, moodTags. \
+        title should be a concise name for the subject (e.g. "Carlsbad Flower Fields", "Kendrick Lamar", "Nike Air Max 90"). \
         Focus aestheticDescription on feeling not summary.
         """
 

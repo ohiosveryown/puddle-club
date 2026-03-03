@@ -24,14 +24,14 @@ struct HomeView: View {
             }
             .navigationTitle("Puddle Club")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Process") { startPipeline() }
+                        .disabled(pipelineState.isProcessing)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(destination: SettingsView()) {
                         Image(systemName: "gear")
                     }
-                }
-                ToolbarItem(placement: .bottomBar) {
-                    Button("Process") { startPipeline() }
-                        .disabled(pipelineState.isProcessing)
                 }
             }
             .overlay {
@@ -61,11 +61,9 @@ private struct ScreenshotRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 statusBadge
-                if let contentType = screenshot.contentType {
-                    Text(contentType)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                Text(screenshot.displayTitle)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(screenshot.localIdentifier.prefix(8) + "…")
                     .font(.caption2)
