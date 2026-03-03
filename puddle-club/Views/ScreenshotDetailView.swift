@@ -58,9 +58,61 @@ struct ScreenshotDetailView: View {
     let screenshot: Screenshot
 
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Screenshot.addedToLibraryDate, order: .forward) private var screenshots: [Screenshot]
     @Environment(\.dismiss) private var dismiss
-    @State private var image: UIImage? = nil
     @State private var confirmDelete = false
+
+    @State private var currentLocalIdentifier: String
+
+    init(screenshot: Screenshot) {
+        self.screenshot = screenshot
+        _currentLocalIdentifier = State(initialValue: screenshot.localIdentifier)
+    }
+
+    private var currentScreenshot: Screenshot {
+        screenshots.first(where: { $0.localIdentifier == currentLocalIdentifier }) ?? screenshot
+    }
+
+    private var currentIndex: Int? {
+        screenshots.firstIndex(where: { $0.localIdentifier == currentLocalIdentifier })
+    }
+
+    var body: some View {
+        TabView(selection: $currentLocalIdentifier) {
+            ForEach(screenshots) { shot in
+                ScreenshotPageView(screenshot: shot)
+                .tag(shot.localIdentifier)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .navigationTitle(currentScreenshot.displayTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .ignoresSafeArea(edges: .top)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) { confirmDelete = true } label: {
+                    Image(systemName: "trash")
+                }
+            }
+        }
+        .confirmationDialog("Delete this screenshot?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                modelContext.delete(currentScreenshot)
+                try? modelContext.save()
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+}
+
+// MARK: - Per-screenshot page content
+
+private struct ScreenshotPageView: View {
+    let screenshot: Screenshot
+
+    @State private var image: UIImage? = nil
 
     var body: some View {
         ScrollView {
@@ -110,28 +162,8 @@ struct ScreenshotDetailView: View {
                 .padding(.bottom, 32)
             }
         }
-        .navigationTitle(screenshot.displayTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .ignoresSafeArea(edges: .top)
-        .onAppear { loadImage() }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) { confirmDelete = true } label: {
-                    Image(systemName: "trash")
-                }
-            }
-        }
-        .confirmationDialog("Delete this screenshot?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                modelContext.delete(screenshot)
-                try? modelContext.save()
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) {}
-        }
+        .onAppear(perform: loadImage)
     }
-
-    // MARK: - Subviews
 
     @ViewBuilder
     private var imageSection: some View {
@@ -270,7 +302,6 @@ struct ScreenshotDetailView: View {
     }
 
     // MARK: - Image loading
-
     private func loadImage() {
         let result = PHAsset.fetchAssets(withLocalIdentifiers: [screenshot.localIdentifier], options: nil)
         guard let asset = result.firstObject else { return }
