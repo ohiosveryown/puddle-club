@@ -10,6 +10,7 @@ struct HomeView: View {
 
     @State private var pipelineState = PipelineState()
     @State private var pipeline: ProcessingPipeline?
+    @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.openai.rawValue
 
     var filteredScreenshots: [Screenshot] {
         guard !searchText.isEmpty else { return screenshots }
@@ -128,7 +129,8 @@ struct HomeView: View {
 
     private func startPipeline() {
         let container = modelContext.container
-        let p = ProcessingPipeline(container: container, state: pipelineState)
+        let provider = AIProvider(rawValue: aiProviderRaw) ?? .openai
+        let p = ProcessingPipeline(container: container, state: pipelineState, provider: provider)
         pipeline = p
         Task { await p.run() }
     }

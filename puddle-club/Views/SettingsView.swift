@@ -1,25 +1,37 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @State private var apiKey: String = ""
-    @State private var statusMessage: String? = nil
-    @State private var isValidating: Bool = false
+    @State private var openAIKey: String = ""
+    @State private var anthropicKey: String = ""
+    @State private var openAIStatus: String? = nil
+    @State private var anthropicStatus: String? = nil
+    @State private var isValidatingOpenAI: Bool = false
+    @State private var isValidatingAnthropic: Bool = false
+    @AppStorage("aiProvider") private var aiProvider: String = AIProvider.openai.rawValue
 
     var body: some View {
         Form {
+            Section("AI Provider") {
+                Picker("Provider", selection: $aiProvider) {
+                    Text("OpenAI").tag(AIProvider.openai.rawValue)
+                    Text("Anthropic").tag(AIProvider.anthropic.rawValue)
+                }
+                .pickerStyle(.segmented)
+            }
+
             Section("OpenAI API Key") {
-                SecureField("sk-…", text: $apiKey)
+                SecureField("sk-…", text: $openAIKey)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
 
-                Button("Save Key") { saveKey() }
+                Button("Save Key") { saveOpenAIKey() }
 
                 Button("Validate Key") {
-                    Task { await validateKey() }
+                    Task { await validateOpenAIKey() }
                 }
-                .disabled(isValidating)
+                .disabled(isValidatingOpenAI)
 
-                if let msg = statusMessage {
+                if let msg = openAIStatus {
                     Text(msg)
                         .font(.caption)
                         .foregroundStyle(msg.lowercased().contains("error") ? Color.red : Color.green)
@@ -27,45 +39,98 @@ struct SettingsView: View {
             }
 
             Section {
-                Button("Delete API Key", role: .destructive) { deleteKey() }
+                Button("Delete OpenAI Key", role: .destructive) { deleteOpenAIKey() }
+            }
+
+            Section("Anthropic API Key") {
+                SecureField("sk-ant-…", text: $anthropicKey)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+
+                Button("Save Key") { saveAnthropicKey() }
+
+                Button("Validate Key") {
+                    Task { await validateAnthropicKey() }
+                }
+                .disabled(isValidatingAnthropic)
+
+                if let msg = anthropicStatus {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(msg.lowercased().contains("error") ? Color.red : Color.green)
+                }
+            }
+
+            Section {
+                Button("Delete Anthropic Key", role: .destructive) { deleteAnthropicKey() }
             }
         }
         .navigationTitle("Settings")
-        .onAppear { loadExistingKey() }
+        .onAppear { loadExistingKeys() }
     }
 
-    private func loadExistingKey() {
-        apiKey = (try? KeychainService.loadAPIKey()) ?? ""
+    private func loadExistingKeys() {
+        openAIKey = (try? KeychainService.loadAPIKey()) ?? ""
+        anthropicKey = (try? KeychainService.loadAnthropicAPIKey()) ?? ""
     }
 
-    private func saveKey() {
+    private func saveOpenAIKey() {
         do {
-            try KeychainService.saveAPIKey(apiKey)
-            statusMessage = "Key saved"
+            try KeychainService.saveAPIKey(openAIKey)
+            openAIStatus = "Key saved"
         } catch {
-            statusMessage = "Error: \(error.localizedDescription)"
+            openAIStatus = "Error: \(error.localizedDescription)"
         }
     }
 
-    private func validateKey() async {
-        isValidating = true
-        defer { isValidating = false }
+    private func validateOpenAIKey() async {
+        isValidatingOpenAI = true
+        defer { isValidatingOpenAI = false }
         do {
-            let service = OpenAIService()
-            let valid = try await service.validateAPIKey()
-            statusMessage = valid ? "Key is valid ✓" : "Validation failed"
+            let valid = try await OpenAIService().validateAPIKey()
+            openAIStatus = valid ? "Key is valid ✓" : "Validation failed"
         } catch {
-            statusMessage = "Error: \(error.localizedDescription)"
+            openAIStatus = "Error: \(error.localizedDescription)"
         }
     }
 
-    private func deleteKey() {
+    private func deleteOpenAIKey() {
         do {
             try KeychainService.deleteAPIKey()
-            apiKey = ""
-            statusMessage = "Key deleted"
+            openAIKey = ""
+            openAIStatus = "Key deleted"
         } catch {
-            statusMessage = "Error: \(error.localizedDescription)"
+            openAIStatus = "Error: \(error.localizedDescription)"
+        }
+    }
+
+    private func saveAnthropicKey() {
+        do {
+            try KeychainService.saveAnthropicAPIKey(anthropicKey)
+            anthropicStatus = "Key saved"
+        } catch {
+            anthropicStatus = "Error: \(error.localizedDescription)"
+        }
+    }
+
+    private func validateAnthropicKey() async {
+        isValidatingAnthropic = true
+        defer { isValidatingAnthropic = false }
+        do {
+            let valid = try await AnthropicService().validateAPIKey()
+            anthropicStatus = valid ? "Key is valid ✓" : "Validation failed"
+        } catch {
+            anthropicStatus = "Error: \(error.localizedDescription)"
+        }
+    }
+
+    private func deleteAnthropicKey() {
+        do {
+            try KeychainService.deleteAnthropicAPIKey()
+            anthropicKey = ""
+            anthropicStatus = "Key deleted"
+        } catch {
+            anthropicStatus = "Error: \(error.localizedDescription)"
         }
     }
 }

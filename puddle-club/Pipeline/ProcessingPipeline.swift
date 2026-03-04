@@ -18,20 +18,29 @@ final class PipelineState {
     }
 }
 
+enum AIProvider: String {
+    case openai
+    case anthropic
+}
+
 actor ProcessingPipeline {
     private let container: ModelContainer
     private let photoService: PhotoLibraryService
     private let ocrService: OCRService
     private let openAIService: OpenAIService
+    private let anthropicService: AnthropicService
     private let modelContext: ModelContext
     private let state: PipelineState
+    private let provider: AIProvider
 
-    init(container: ModelContainer, state: PipelineState) {
+    init(container: ModelContainer, state: PipelineState, provider: AIProvider = .openai) {
         self.container = container
         self.state = state
+        self.provider = provider
         self.photoService = PhotoLibraryService()
         self.ocrService = OCRService()
         self.openAIService = OpenAIService()
+        self.anthropicService = AnthropicService()
         self.modelContext = ModelContext(container)
     }
 
@@ -99,7 +108,7 @@ actor ProcessingPipeline {
             }
             await updatePhase("Classifying with AI…")
 
-            try await processWithOpenAI(identifiers: ocrCompleteIDs)
+            try await processWithAI(identifiers: ocrCompleteIDs)
 
             // Step 7: Schedule background run
             BackgroundTaskManager.scheduleNextRun()
@@ -165,18 +174,16 @@ actor ProcessingPipeline {
         }
     }
 
-    private func processWithOpenAI(identifiers: [String]) async throws {
+    private func processWithAI(identifiers: [String]) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             var iterator = identifiers.makeIterator()
 
-            // Prime window with up to 3 tasks
             for _ in 0..<min(3, identifiers.count) {
                 if let id = iterator.next() {
                     group.addTask { try await self.processOpenAI(for: id) }
                 }
             }
 
-            // Slide: as each task finishes, save, update progress, add next
             while try await group.next() != nil {
                 try modelContext.save()
                 await MainActor.run { state.processedCount += 1 }
@@ -208,10 +215,14 @@ actor ProcessingPipeline {
 
                 let result: OpenAIClassificationResult
                 if mode == .textRich, let ocrText = screenshot.ocrText {
-                    result = try await openAIService.classifyText(ocrText: ocrText, nlpEntities: nlpEntities)
+                    result = try await provider == .anthropic
+                        ? anthropicService.classifyText(ocrText: ocrText, nlpEntities: nlpEntities)
+                        : openAIService.classifyText(ocrText: ocrText, nlpEntities: nlpEntities)
                 } else {
                     let imageData = try await photoService.fetchHighResImageData(for: identifier)
-                    result = try await openAIService.classifyImage(imageData: imageData, ocrText: screenshot.ocrText)
+                    result = try await provider == .anthropic
+                        ? anthropicService.classifyImage(imageData: imageData, ocrText: screenshot.ocrText)
+                        : openAIService.classifyImage(imageData: imageData, ocrText: screenshot.ocrText)
                 }
 
                 // Map result → model
