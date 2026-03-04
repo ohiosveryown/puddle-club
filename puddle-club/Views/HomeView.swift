@@ -34,6 +34,8 @@ struct HomeView: View {
                     try? modelContext.save()
                 }
             }
+            .listStyle(.plain)
+            .contentMargins(.bottom, 80, for: .scrollContent)
             .navigationTitle("Puddle Club")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -70,27 +72,30 @@ struct FloatingSearchBar: View {
     @Binding var text: String
     @Binding var isFocused: Bool
     @FocusState private var focused: Bool
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var labelColor: Color { colorScheme == .dark ? .white : .black }
 
     var body: some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(.white)
+                .fill(labelColor)
                 .frame(width: 8, height: 8)
 
-            TextField(text: $text, prompt: Text("Search or ask a question...").foregroundStyle(.white.opacity(0.55))) { }
+            TextField(text: $text, prompt: Text("Search or ask a question...").foregroundStyle(labelColor.opacity(0.45))) { }
                 .focused($focused)
-                .foregroundStyle(.white)
+                .foregroundStyle(labelColor)
 
             Spacer()
 
             Button {
                 // placeholder — voice input in future
             } label: {
-                Image(systemName: "waveform")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.black.opacity(0.6))
+                Image("WaveformIcon")
+                    .renderingMode(.template)
+                    .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
-                    .background(.white, in: Circle())
+                    .background(.black, in: Circle())
             }
         }
         .padding(.horizontal, 16)

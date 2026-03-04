@@ -275,6 +275,7 @@ private struct ScreenshotPageView: View {
                 }
             )
         }
+        .contentMargins(.bottom, 80, for: .scrollContent)
         .coordinateSpace(name: "scroll")
         .background(
             GeometryReader { geo in
