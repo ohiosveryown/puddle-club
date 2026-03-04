@@ -84,8 +84,17 @@ struct HomeView: View {
                 }
                 .contentMargins(.bottom, 80, for: .scrollContent)
             }
-            .navigationTitle("Puddle Club")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Image("PuddleClubLogo")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 24)
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Process") { startPipeline() }
