@@ -21,21 +21,29 @@ struct HomeView: View {
         }
     }
 
-    private func columns(colWidth: CGFloat, spacing: CGFloat) -> (left: [(Int, Screenshot)], right: [(Int, Screenshot)]) {
-        let naturalH = colWidth / 0.46
-        let rightFirstH = colWidth * 1.3
-        var left: [(Int, Screenshot)] = []
-        var right: [(Int, Screenshot)] = []
+    // Stable deterministic height — same screenshot always gets the same height
+    private func cellHeight(for screenshot: Screenshot, colWidth: CGFloat) -> CGFloat {
+        var hash: UInt64 = 5381
+        for c in screenshot.localIdentifier.unicodeScalars {
+            hash = hash &* 31 &+ UInt64(c.value)
+        }
+        let t = CGFloat(hash % 1000) / 1000.0   // 0.0 – 1.0
+        return colWidth * (1.0 + t * 1.4)        // colWidth × 1.0 – 2.4
+    }
+
+    private func columns(colWidth: CGFloat, spacing: CGFloat) -> (left: [Screenshot], right: [Screenshot]) {
+        var left: [Screenshot] = []
+        var right: [Screenshot] = []
         var leftH: CGFloat = 0
         var rightH: CGFloat = 0
 
         for screenshot in filteredScreenshots {
+            let h = cellHeight(for: screenshot, colWidth: colWidth)
             if leftH <= rightH {
-                left.append((left.count, screenshot))
-                leftH += (leftH > 0 ? spacing : 0) + naturalH
+                left.append(screenshot)
+                leftH += (leftH > 0 ? spacing : 0) + h
             } else {
-                let h = right.isEmpty ? rightFirstH : naturalH
-                right.append((right.count, screenshot))
+                right.append(screenshot)
                 rightH += (rightH > 0 ? spacing : 0) + h
             }
         }
@@ -52,20 +60,22 @@ struct HomeView: View {
                 ScrollView {
                     HStack(alignment: .top, spacing: spacing) {
                         LazyVStack(spacing: spacing) {
-                            ForEach(cols.left, id: \.1.localIdentifier) { _, screenshot in
+                            ForEach(cols.left) { screenshot in
                                 NavigationLink(destination: ScreenshotDetailView(screenshot: screenshot)) {
-                                    MasonryImageCell(screenshot: screenshot, width: colWidth, clipHeight: nil)
+                                    MasonryImageCell(screenshot: screenshot, width: colWidth, clipHeight: cellHeight(for: screenshot, colWidth: colWidth))
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu { deleteButton(for: screenshot) }
                             }
                         }
                         .frame(width: colWidth)
                         LazyVStack(spacing: spacing) {
-                            ForEach(cols.right, id: \.1.localIdentifier) { index, screenshot in
+                            ForEach(cols.right) { screenshot in
                                 NavigationLink(destination: ScreenshotDetailView(screenshot: screenshot)) {
-                                    MasonryImageCell(screenshot: screenshot, width: colWidth, clipHeight: index == 0 ? colWidth * 1.3 : nil)
+                                    MasonryImageCell(screenshot: screenshot, width: colWidth, clipHeight: cellHeight(for: screenshot, colWidth: colWidth))
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu { deleteButton(for: screenshot) }
                             }
                         }
                         .frame(width: colWidth)
@@ -74,7 +84,6 @@ struct HomeView: View {
                 }
                 .contentMargins(.bottom, 80, for: .scrollContent)
             }
-            .contentMargins(.bottom, 80, for: .scrollContent)
             .navigationTitle("Puddle Club")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -95,6 +104,16 @@ struct HomeView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func deleteButton(for screenshot: Screenshot) -> some View {
+        Button(role: .destructive) {
+            modelContext.delete(screenshot)
+            try? modelContext.save()
+        } label: {
+            Label("Delete", systemImage: "trash")
         }
     }
 
