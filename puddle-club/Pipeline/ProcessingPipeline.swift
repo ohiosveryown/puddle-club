@@ -125,6 +125,19 @@ actor ProcessingPipeline {
         await MainActor.run { state.currentPhase = phase }
     }
 
+    func resetAllForReprocessing() throws {
+        let all = try modelContext.fetch(FetchDescriptor<Screenshot>())
+        for screenshot in all {
+            let status = ProcessingStatus(rawValue: screenshot.processingStatus) ?? .pending
+            if status == .complete || status == .failed || status == .skipped {
+                screenshot.processingStatus = ProcessingStatus.ocrComplete.rawValue
+                screenshot.processingAttempts = 0
+                screenshot.errorMessage = nil
+            }
+        }
+        try modelContext.save()
+    }
+
     private func fetchExistingIdentifiers() throws -> Set<String> {
         let screenshots = try modelContext.fetch(FetchDescriptor<Screenshot>())
         return Set(screenshots.map { $0.localIdentifier })

@@ -10,6 +10,7 @@ actor AnthropicService {
         Return ONLY valid JSON with keys: title, contentType, contentTypeConfidence, \
         entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes. \
         title should be a concise name for the subject (e.g. "Carlsbad Flower Fields", "Kendrick Lamar", "Nike Air Max 90"). \
+        contentType must be exactly one of: food, music, travel, design, fashion, product, architecture, art, text, social, event, person, nature, woodworking, unknown. \
         reflection should be 1–2 sentences, written directly to the user in the second person ("you"), \
         as a personal, reflective note about why this screenshot might matter to them or how it fits into their life. \
         Focus on mood and the user's relationship to the content, not a dry summary of what's on screen. \
@@ -85,9 +86,13 @@ actor AnthropicService {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { return false }
-        return http.statusCode == 200
+        if http.statusCode != 200 {
+            let body = String(data: data, encoding: .utf8) ?? "no body"
+            throw AnthropicError.apiError(http.statusCode, body)
+        }
+        return true
     }
 
     // MARK: - Private

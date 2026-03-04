@@ -225,6 +225,19 @@ private struct ScreenshotPageView: View {
                         .padding(.top, 8)
                 }
 
+                // MARK: Content type pill
+                if let ct = ContentType(rawValue: screenshot.contentType ?? ""),
+                   ct != .unknown {
+                    Label(ct.displayName, systemImage: ct.sfSymbol)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.secondary.opacity(0.12))
+                        .clipShape(Capsule())
+                        .padding(.horizontal, 20)
+                }
+
                 VStack(alignment: .leading, spacing: 0) {
 
                     // MARK: Primary action

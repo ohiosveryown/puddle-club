@@ -1,10 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct SettingsView: View {
+    @Environment(\.modelContext) private var modelContext
     @State private var openAIKey: String = ""
     @State private var anthropicKey: String = ""
     @State private var openAIStatus: String? = nil
     @State private var anthropicStatus: String? = nil
+    @State private var reprocessStatus: String? = nil
     @State private var isValidatingOpenAI: Bool = false
     @State private var isValidatingAnthropic: Bool = false
     @AppStorage("aiProvider") private var aiProvider: String = AIProvider.openai.rawValue
@@ -64,6 +67,16 @@ struct SettingsView: View {
             Section {
                 Button("Delete Anthropic Key", role: .destructive) { deleteAnthropicKey() }
             }
+
+            Section("Data") {
+                Button("Reprocess All Screenshots") { Task { await reprocessAll() } }
+
+                if let msg = reprocessStatus {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(msg.lowercased().contains("error") ? Color.red : Color.green)
+                }
+            }
         }
         .navigationTitle("Settings")
         .onAppear { loadExistingKeys() }
@@ -87,6 +100,9 @@ struct SettingsView: View {
         isValidatingOpenAI = true
         defer { isValidatingOpenAI = false }
         do {
+            let trimmed = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            openAIKey = trimmed
+            try KeychainService.saveAPIKey(trimmed)
             let valid = try await OpenAIService().validateAPIKey()
             openAIStatus = valid ? "Key is valid ✓" : "Validation failed"
         } catch {
@@ -117,6 +133,9 @@ struct SettingsView: View {
         isValidatingAnthropic = true
         defer { isValidatingAnthropic = false }
         do {
+            let trimmed = anthropicKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            anthropicKey = trimmed
+            try KeychainService.saveAnthropicAPIKey(trimmed)
             let valid = try await AnthropicService().validateAPIKey()
             anthropicStatus = valid ? "Key is valid ✓" : "Validation failed"
         } catch {
@@ -131,6 +150,20 @@ struct SettingsView: View {
             anthropicStatus = "Key deleted"
         } catch {
             anthropicStatus = "Error: \(error.localizedDescription)"
+        }
+    }
+
+    private func reprocessAll() async {
+        do {
+            let pipeline = ProcessingPipeline(
+                container: modelContext.container,
+                state: PipelineState(),
+                provider: AIProvider(rawValue: aiProvider) ?? .openai
+            )
+            try await pipeline.resetAllForReprocessing()
+            reprocessStatus = "Ready — tap Process on the home screen"
+        } catch {
+            reprocessStatus = "Error: \(error.localizedDescription)"
         }
     }
 }

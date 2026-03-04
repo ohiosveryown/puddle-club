@@ -24,6 +24,7 @@ enum ContentType: String, Codable, CaseIterable {
     case event
     case person
     case nature
+    case woodworking
     case unknown
 }
 

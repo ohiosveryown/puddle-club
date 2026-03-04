@@ -13,15 +13,15 @@ struct OpenAIClassificationResult: Sendable, Decodable {
 
     nonisolated init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        title = try c.decode(String.self, forKey: .title)
-        contentType = try c.decode(String.self, forKey: .contentType)
-        contentTypeConfidence = try c.decode(Double.self, forKey: .contentTypeConfidence)
-        entities = try c.decode([OpenAIEntity].self, forKey: .entities)
-        tags = try c.decode([String].self, forKey: .tags)
-        reflection = try c.decode(String.self, forKey: .reflection)
-        dominantColors = try c.decode([String].self, forKey: .dominantColors)
-        moodTags = try c.decode([String].self, forKey: .moodTags)
-        aestheticNotes = try c.decodeIfPresent([String].self, forKey: .aestheticNotes) ?? []
+        title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? ""
+        contentType = (try? c.decodeIfPresent(String.self, forKey: .contentType)) ?? "unknown"
+        contentTypeConfidence = (try? c.decodeIfPresent(Double.self, forKey: .contentTypeConfidence)) ?? 0.0
+        entities = (try? c.decodeIfPresent([OpenAIEntity].self, forKey: .entities)) ?? []
+        tags = (try? c.decodeIfPresent([String].self, forKey: .tags)) ?? []
+        reflection = (try? c.decodeIfPresent(String.self, forKey: .reflection)) ?? ""
+        dominantColors = (try? c.decodeIfPresent([String].self, forKey: .dominantColors)) ?? []
+        moodTags = (try? c.decodeIfPresent([String].self, forKey: .moodTags)) ?? []
+        aestheticNotes = (try? c.decodeIfPresent([String].self, forKey: .aestheticNotes)) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -57,6 +57,7 @@ actor OpenAIService {
         Return ONLY valid JSON with keys: title, contentType, contentTypeConfidence, \
         entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes. \
         title should be a concise name for the subject (e.g. "Carlsbad Flower Fields", "Kendrick Lamar", "Nike Air Max 90"). \
+        contentType must be exactly one of: food, music, travel, design, fashion, product, architecture, art, text, social, event, person, nature, woodworking, unknown. \
         reflection should be 1–2 sentences, written directly to the user in the second person ("you"), \
         as a personal, reflective note about why this screenshot might matter to them or how it fits into their life. \
         Focus on mood and the user's relationship to the content, not a dry summary of what's on screen. \
