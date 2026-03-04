@@ -74,7 +74,7 @@ struct ScreenshotDetailView: View {
     let screenshot: Screenshot
 
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Screenshot.addedToLibraryDate, order: .forward) private var screenshots: [Screenshot]
+    @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var screenshots: [Screenshot]
     @Environment(\.dismiss) private var dismiss
     @State private var confirmDelete = false
     @State private var scrollProgress: CGFloat = 0
