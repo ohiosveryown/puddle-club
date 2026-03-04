@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Photos
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
@@ -8,7 +9,6 @@ struct HomeView: View {
     @Binding var searchText: String
 
     @State private var pipelineState = PipelineState()
-    // Hold a strong reference so the actor isn't released mid-run
     @State private var pipeline: ProcessingPipeline?
 
     var filteredScreenshots: [Screenshot] {
@@ -21,22 +21,62 @@ struct HomeView: View {
         }
     }
 
+    private func columns(colWidth: CGFloat, spacing: CGFloat) -> (left: [(Int, Screenshot)], right: [(Int, Screenshot)]) {
+        let naturalH = colWidth / 0.46
+        let rightFirstH = colWidth * 1.3
+        var left: [(Int, Screenshot)] = []
+        var right: [(Int, Screenshot)] = []
+        var leftH: CGFloat = 0
+        var rightH: CGFloat = 0
+
+        for screenshot in filteredScreenshots {
+            if leftH <= rightH {
+                left.append((left.count, screenshot))
+                leftH += (leftH > 0 ? spacing : 0) + naturalH
+            } else {
+                let h = right.isEmpty ? rightFirstH : naturalH
+                right.append((right.count, screenshot))
+                rightH += (rightH > 0 ? spacing : 0) + h
+            }
+        }
+        return (left, right)
+    }
+
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(filteredScreenshots) { screenshot in
-                    NavigationLink(destination: ScreenshotDetailView(screenshot: screenshot)) {
-                        ScreenshotRow(screenshot: screenshot)
+            GeometryReader { geo in
+                let spacing: CGFloat = 12
+                let colWidth = (geo.size.width - spacing * 3) / 2
+                let cols = columns(colWidth: colWidth, spacing: spacing)
+
+                ScrollView {
+                    HStack(alignment: .top, spacing: spacing) {
+                        LazyVStack(spacing: spacing) {
+                            ForEach(cols.left, id: \.1.localIdentifier) { _, screenshot in
+                                NavigationLink(destination: ScreenshotDetailView(screenshot: screenshot)) {
+                                    MasonryImageCell(screenshot: screenshot, width: colWidth, clipHeight: nil)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .frame(width: colWidth)
+                        LazyVStack(spacing: spacing) {
+                            ForEach(cols.right, id: \.1.localIdentifier) { index, screenshot in
+                                NavigationLink(destination: ScreenshotDetailView(screenshot: screenshot)) {
+                                    MasonryImageCell(screenshot: screenshot, width: colWidth, clipHeight: index == 0 ? colWidth * 1.3 : nil)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .frame(width: colWidth)
                     }
+                    .padding(spacing)
                 }
-                .onDelete { offsets in
-                    for i in offsets { modelContext.delete(filteredScreenshots[i]) }
-                    try? modelContext.save()
-                }
+                .contentMargins(.bottom, 80, for: .scrollContent)
             }
-            .listStyle(.plain)
             .contentMargins(.bottom, 80, for: .scrollContent)
             .navigationTitle("Puddle Club")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Process") { startPipeline() }
@@ -63,6 +103,54 @@ struct HomeView: View {
         let p = ProcessingPipeline(container: container, state: pipelineState)
         pipeline = p
         Task { await p.run() }
+    }
+}
+
+// MARK: - Masonry Cell
+
+private struct MasonryImageCell: View {
+    let screenshot: Screenshot
+    let width: CGFloat
+    var clipHeight: CGFloat? = nil
+    @State private var image: UIImage?
+
+    private var height: CGFloat {
+        clipHeight ?? (width / 0.46)
+    }
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Rectangle()
+                    .fill(.secondary.opacity(0.1))
+            }
+        }
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .onAppear(perform: loadImage)
+    }
+
+    private func loadImage() {
+        let result = PHAsset.fetchAssets(withLocalIdentifiers: [screenshot.localIdentifier], options: nil)
+        guard let asset = result.firstObject else { return }
+
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.isNetworkAccessAllowed = true
+
+        PHImageManager.default().requestImage(
+            for: asset,
+            targetSize: CGSize(width: 500, height: 1000),
+            contentMode: .aspectFill,
+            options: options
+        ) { img, _ in
+            guard let img else { return }
+            DispatchQueue.main.async { self.image = img }
+        }
     }
 }
 
@@ -104,53 +192,5 @@ struct FloatingSearchBar: View {
         .glassEffect(in: Capsule())
         .onChange(of: focused) { _, new in isFocused = new }
         .onChange(of: isFocused) { _, new in focused = new }
-    }
-}
-
-// MARK: - Row
-
-private struct ScreenshotRow: View {
-    let screenshot: Screenshot
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                statusBadge
-                Text(screenshot.displayTitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(screenshot.localIdentifier.prefix(8) + "…")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-            if let reflection = screenshot.reflection {
-                Text(reflection)
-                    .font(.caption)
-                    .lineLimit(2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 2)
-    }
-
-    private var statusBadge: some View {
-        Text(screenshot.processingStatus)
-            .font(.caption2)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(badgeColor.opacity(0.15))
-            .foregroundStyle(badgeColor)
-            .clipShape(Capsule())
-    }
-
-    private var badgeColor: Color {
-        switch ProcessingStatus(rawValue: screenshot.processingStatus) {
-        case .complete: return .green
-        case .failed: return .red
-        case .ocrInProgress, .openAIInProgress: return .orange
-        case .ocrComplete: return .blue
-        default: return .secondary
-        }
     }
 }

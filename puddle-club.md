@@ -2,7 +2,7 @@
 
 ## Executive summary
 
-Puddle Club is an iOS app that automatically detects screenshots in the user's photo library, processes them on-device (OCR, entity extraction) and via OpenAI (semantic classification, tagging, action suggestions), and organizes them into searchable collections called [name to be determined]. The core value prop: capture anything by screenshotting it, let the app do the rest.
+Puddle Club is an iOS app that automatically detects screenshots in the user's photo library, processes them on-device (OCR, entity extraction) and via OpenAI (semantic classification, tagging, action suggestions), and organizes them into searchable collections called Puddles. The core value prop: capture anything by screenshotting it, let the app do the rest.
 
 ---
 
@@ -85,7 +85,7 @@ She downloads the app after seeing it on someone's story.
 
 #### Onboarding
 
-The app asks for access to her Screenshots album. No lengthy questionnaire, no "pick five things you like." Just:
+The app asks for access to her Screenshots album. No lengthy questionnaire, no "pick five things you like."
 
 The water shader effect plays as it processes — unhurried, almost meditative. It doesn't feel like a loading screen, it feels like something is actually happening.
 
@@ -219,4 +219,4 @@ He didn't know that about himself until the app said it.
 
 #### The Core Insight
 
-James never thought of himself as someone with taste. The app didn't give him taste — it showed him he already had it. That's the quieter, more universal version of Lido Club's promise. It's not just for people who know what they like. It's for everyone who saves things without knowing why.
+James never thought of himself as someone with taste. The app didn't give him taste — it showed him he already had it. That's the quieter, more universal version of Puddle Club's promise. It's not just for people who know what they like. It's for everyone who saves things without knowing why.
