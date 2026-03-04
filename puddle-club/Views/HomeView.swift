@@ -98,7 +98,8 @@ struct FloatingSearchBar: View {
                     .background(.black, in: Circle())
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.leading, 20)
+        .padding(.trailing, 12)
         .padding(.vertical, 12)
         .glassEffect(in: Capsule())
         .onChange(of: focused) { _, new in isFocused = new }
