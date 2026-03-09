@@ -205,6 +205,11 @@ private struct ScreenshotPageView: View {
         return h * 0.7
     }
 
+    /// Primary color from the image (first dominant color) for the drop shadow; falls back to black.
+    private var imageShadowColor: Color {
+        Color.fromDominantColorString(screenshot.dominantColors.first) ?? .black
+    }
+
     private let scrollTransitionDistance: CGFloat = 80
 
     var body: some View {
@@ -331,9 +336,9 @@ private struct ScreenshotPageView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
         }
-        .shadow(color: .black.opacity(0.09), radius: 80, x: 0, y: 15)
-        .shadow(color: .black.opacity(0.05), radius: 18, x: 0, y: 4)
-        .shadow(color: .black.opacity(0.036), radius: 5, x: 0, y: 1)
+        .shadow(color: imageShadowColor.opacity(0.35), radius: 80, x: 0, y: 15)
+        .shadow(color: imageShadowColor.opacity(0.12), radius: 18, x: 0, y: 4)
+        .shadow(color: imageShadowColor.opacity(0.08), radius: 5, x: 0, y: 1)
         .padding(.horizontal, 12)
         .padding(.top, 64)
         .frame(maxWidth: .infinity, alignment: .center)
