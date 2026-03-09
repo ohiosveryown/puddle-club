@@ -15,6 +15,7 @@ extension Color {
                 let r = Double((rgb >> 16) & 0xFF) / 255
                 let g = Double((rgb >> 8) & 0xFF) / 255
                 let b = Double(rgb & 0xFF) / 255
+                if isTooLightForShadow(r: r, g: g, b: b) { return nil }
                 return Color(red: r, green: g, blue: b)
             }
         }
@@ -22,8 +23,24 @@ extension Color {
         // Normalize for lookup: lowercase; try with spaces then without (e.g. "warm orange" → "warmorange")
         let normalized = s.lowercased().split(separator: " ").joined(separator: " ")
         let noSpaces = normalized.replacingOccurrences(of: " ", with: "")
-        return Self.dominantColorNameMap[normalized] ?? Self.dominantColorNameMap[noSpaces]
+        if let color = Self.dominantColorNameMap[normalized] ?? Self.dominantColorNameMap[noSpaces],
+           !Self.lightColorKeys.contains(normalized),
+           !Self.lightColorKeys.contains(noSpaces) {
+            return color
+        }
+        return nil
     }
+
+    /// Colors too light for a visible shadow; caller should use black instead.
+    private static func isTooLightForShadow(r: Double, g: Double, b: Double) -> Bool {
+        let luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        return luminance > 0.9
+    }
+
+    private static let lightColorKeys: Set<String> = [
+        "white", "cream", "beige", "ivory", "offwhite", "off-white",
+        "lightgray", "light grey", "silver",
+    ]
 
     private static let dominantColorNameMap: [String: Color] = [
         "coral": Color(red: 1.0, green: 0.49, blue: 0.38),
