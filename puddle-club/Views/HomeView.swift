@@ -183,7 +183,7 @@ private struct PuddleGroupCard: View {
     let hasDot: Bool
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             PuddleStackView(screenshots: screenshots, colWidth: colWidth)
 
             HStack(spacing: 8) {
@@ -194,7 +194,7 @@ private struct PuddleGroupCard: View {
                 }
 
                 Text(type.displayName)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -242,7 +242,7 @@ private struct PuddleStackView: View {
                     .offset(y: n == 1 ? 0 : cfg.yOffset)
             }
         }
-        .frame(width: colWidth, height: cardHeight + 40)
+        .frame(width: colWidth, height: cardHeight + 20)
     }
 }
 
@@ -254,6 +254,11 @@ private struct StackCardView: View {
     let width: CGFloat
     let height: CGFloat
     @State private var image: UIImage?
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var borderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.32) : Color.black.opacity(0.10)
+    }
 
     var body: some View {
         Group {
@@ -268,6 +273,7 @@ private struct StackCardView: View {
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(borderColor, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.38), radius: 16, x: 0, y: 8)
         .onAppear(perform: loadImage)
     }
