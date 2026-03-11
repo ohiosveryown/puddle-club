@@ -72,18 +72,24 @@ private struct ViewportSizeKey: PreferenceKey {
 
 struct ScreenshotDetailView: View {
     let screenshot: Screenshot
+    var siblings: [Screenshot]? = nil
 
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var screenshots: [Screenshot]
+    @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var allScreenshots: [Screenshot]
     @Environment(\.dismiss) private var dismiss
     @State private var confirmDelete = false
     @State private var scrollProgress: CGFloat = 0
 
     @State private var currentLocalIdentifier: String
 
-    init(screenshot: Screenshot) {
+    init(screenshot: Screenshot, siblings: [Screenshot]? = nil) {
         self.screenshot = screenshot
+        self.siblings = siblings
         _currentLocalIdentifier = State(initialValue: screenshot.localIdentifier)
+    }
+
+    private var screenshots: [Screenshot] {
+        siblings ?? allScreenshots
     }
 
     private var currentScreenshot: Screenshot {

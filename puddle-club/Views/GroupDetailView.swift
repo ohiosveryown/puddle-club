@@ -44,8 +44,8 @@ struct GroupDetailView: View {
 
             ScrollView {
                 HStack(alignment: .top, spacing: spacing) {
-                    masonryColumn(screenshots: cols.left, colWidth: colWidth, spacing: spacing)
-                    masonryColumn(screenshots: cols.right, colWidth: colWidth, spacing: spacing)
+                    masonryColumn(columnItems: cols.left, colWidth: colWidth, spacing: spacing)
+                    masonryColumn(columnItems: cols.right, colWidth: colWidth, spacing: spacing)
                 }
                 .padding(spacing)
             }
@@ -66,11 +66,11 @@ struct GroupDetailView: View {
     }
 
     @ViewBuilder
-    private func masonryColumn(screenshots: [Screenshot], colWidth: CGFloat, spacing: CGFloat) -> some View {
+    private func masonryColumn(columnItems: [Screenshot], colWidth: CGFloat, spacing: CGFloat) -> some View {
         LazyVStack(spacing: spacing) {
-            ForEach(screenshots) { screenshot in
+            ForEach(columnItems) { screenshot in
                 let h = cellHeight(for: screenshot, colWidth: colWidth)
-                NavigationLink(destination: ScreenshotDetailView(screenshot: screenshot)) {
+                NavigationLink(destination: ScreenshotDetailView(screenshot: screenshot, siblings: screenshots)) {
                     MasonryImageCell(screenshot: screenshot, width: colWidth, clipHeight: h)
                 }
                 .buttonStyle(.plain)
