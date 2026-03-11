@@ -110,12 +110,16 @@ struct HomeView: View {
                         spacing: 44
                     ) {
                         ForEach(availableTypes, id: \.self) { type in
-                            PuddleGroupCard(
-                                type: type,
-                                screenshots: screenshotsForType(type),
-                                colWidth: colWidth,
-                                hasDot: hasUnprocessed(for: type)
-                            )
+                            let typeScreenshots = screenshotsForType(type)
+                            NavigationLink(destination: GroupDetailView(type: type, screenshots: typeScreenshots)) {
+                                PuddleGroupCard(
+                                    type: type,
+                                    screenshots: typeScreenshots,
+                                    colWidth: colWidth,
+                                    hasDot: hasUnprocessed(for: type)
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, hSpacing)
