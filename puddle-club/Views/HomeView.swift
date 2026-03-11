@@ -178,27 +178,21 @@ private struct PuddleGroupCard: View {
         VStack(spacing: 16) {
             PuddleStackView(screenshots: screenshots, colWidth: colWidth)
 
-            VStack(spacing: 5) {
-                HStack(spacing: 7) {
-                    Text(type.displayName)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-
-                    Image(systemName: type.sfSymbol)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
-
-                    if hasDot {
-                        Circle()
-                            .fill(.red)
-                            .frame(width: 8, height: 8)
-                    }
+            HStack(spacing: 8) {
+                if hasDot {
+                    Circle()
+                        .fill(.red)
+                        .frame(width: 8, height: 8)
                 }
 
+                Text(type.displayName)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
                 Text(screenshots.count.formatted())
-                    .font(.system(size: 17, weight: .regular))
+                    .font(.system(size: 16, weight: .regular))
                     .foregroundStyle(.secondary)
             }
         }
@@ -213,7 +207,7 @@ private struct PuddleStackView: View {
     let screenshots: [Screenshot]
     let colWidth: CGFloat
 
-    private var cardWidth: CGFloat { colWidth * 0.50 }
+    private var cardWidth: CGFloat { colWidth * 0.55 }
     private var cardHeight: CGFloat { cardWidth * (212 / 124) }
 
     private var configs: [(transform: CGAffineTransform, scale: CGFloat, yOffset: CGFloat)] {
