@@ -46,21 +46,6 @@ extension ContentType {
     }
 }
 
-// MARK: - Visible date preference key
-
-private struct CellDateItem: Equatable {
-    let date: Date
-    let minY: CGFloat
-    let maxY: CGFloat
-}
-
-private struct CellDatesKey: PreferenceKey {
-    static let defaultValue: [CellDateItem] = []
-    static func reduce(value: inout [CellDateItem], nextValue: () -> [CellDateItem]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
 
 // MARK: - HomeView
 
@@ -74,14 +59,16 @@ struct HomeView: View {
     @State private var pipeline: ProcessingPipeline?
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.openai.rawValue
 
-    @State private var selectedContentType: ContentType? = nil
-    @State private var visibleDates: [Date] = []
-    @State private var tabsVisible: Bool = true
-    @State private var lastTabChangeOffset: CGFloat = 0
+    private static let incompleteStatuses: Set<String> = [
+        ProcessingStatus.pending.rawValue,
+        ProcessingStatus.ocrInProgress.rawValue,
+        ProcessingStatus.ocrComplete.rawValue,
+        ProcessingStatus.openAIInProgress.rawValue
+    ]
 
     var availableTypes: [ContentType] {
         let seen = Set(
-            screenshots
+            filteredScreenshots
                 .compactMap { ContentType(rawValue: $0.contentType ?? "") }
                 .filter { $0 != .unknown }
         )
@@ -89,154 +76,52 @@ struct HomeView: View {
     }
 
     var filteredScreenshots: [Screenshot] {
-        var results = Array(screenshots)
-        if !searchText.isEmpty {
-            let q = searchText.lowercased()
-            results = results.filter {
-                ($0.displayTitle.lowercased().contains(q)) ||
-                ($0.reflection?.lowercased().contains(q) ?? false) ||
-                ($0.tags.contains(where: { $0.value.lowercased().contains(q) }))
-            }
-        }
-        if let type = selectedContentType {
-            results = results.filter { ($0.contentType ?? "") == type.rawValue }
-        }
-        return results
-    }
-
-    var dateRangeLabel: String? {
-        guard !visibleDates.isEmpty else { return nil }
-        let sorted = visibleDates.sorted()
-        return Self.formatDateRange(from: sorted.first!, to: sorted.last!)
-    }
-
-    private static func formatDateRange(from lo: Date, to hi: Date) -> String {
-        let cal = Calendar.current
-        let loC = cal.dateComponents([.year, .month, .day], from: lo)
-        let hiC = cal.dateComponents([.year, .month, .day], from: hi)
-
-        if loC.year == hiC.year && loC.month == hiC.month && loC.day == hiC.day {
-            return lo.formatted(.dateTime.month(.abbreviated).day().year())
-        }
-
-        let loMon = lo.formatted(.dateTime.month(.abbreviated))
-        let loDay = lo.formatted(.dateTime.day())
-        let hiMon = hi.formatted(.dateTime.month(.abbreviated))
-        let hiDay = hi.formatted(.dateTime.day())
-        let hiYear = hi.formatted(.dateTime.year())
-
-        if loC.year == hiC.year {
-            if loC.month == hiC.month {
-                return "\(loMon) \(loDay)–\(hiDay), \(hiYear)"
-            } else {
-                return "\(loMon) \(loDay)–\(hiMon) \(hiDay), \(hiYear)"
-            }
-        } else {
-            let loYear = lo.formatted(.dateTime.year())
-            return "\(loMon) \(loDay), \(loYear)–\(hiMon) \(hiDay), \(hiYear)"
+        guard !searchText.isEmpty else { return Array(screenshots) }
+        let q = searchText.lowercased()
+        return screenshots.filter {
+            ($0.displayTitle.lowercased().contains(q)) ||
+            ($0.reflection?.lowercased().contains(q) ?? false) ||
+            ($0.tags.contains(where: { $0.value.lowercased().contains(q) }))
         }
     }
 
-    // Stable deterministic height — same screenshot always gets the same height
-    private func cellHeight(for screenshot: Screenshot, colWidth: CGFloat) -> CGFloat {
-        var hash: UInt64 = 5381
-        for c in screenshot.localIdentifier.unicodeScalars {
-            hash = hash &* 31 &+ UInt64(c.value)
-        }
-        let t = CGFloat(hash % 1000) / 1000.0
-        return colWidth * (1.0 + t * 1.4)
+    private func screenshotsForType(_ type: ContentType) -> [Screenshot] {
+        filteredScreenshots.filter { ($0.contentType ?? "") == type.rawValue }
     }
 
-    private func columns(colWidth: CGFloat, spacing: CGFloat) -> (left: [Screenshot], right: [Screenshot]) {
-        var left: [Screenshot] = []
-        var right: [Screenshot] = []
-        var leftH: CGFloat = 0
-        var rightH: CGFloat = 0
-
-        for screenshot in filteredScreenshots {
-            let h = cellHeight(for: screenshot, colWidth: colWidth)
-            if leftH <= rightH {
-                left.append(screenshot)
-                leftH += (leftH > 0 ? spacing : 0) + h
-            } else {
-                right.append(screenshot)
-                rightH += (rightH > 0 ? spacing : 0) + h
-            }
+    private func hasUnprocessed(for type: ContentType) -> Bool {
+        screenshotsForType(type).contains {
+            Self.incompleteStatuses.contains($0.processingStatus)
         }
-        return (left, right)
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                ZStack {
-                    if tabsVisible {
-                        PuddleTabStrip(
-                            selected: $selectedContentType,
-                            available: availableTypes,
-                            screenshots: Array(screenshots)
-                        )
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-                }
-                .clipped()
+            GeometryReader { geo in
+                let hSpacing: CGFloat = 12
+                let colWidth = (geo.size.width - hSpacing * 3) / 2
 
-                if let label = dateRangeLabel {
-                    Text(label)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 8)
-                        .transition(.opacity)
-                }
-
-                GeometryReader { geo in
-                    let spacing: CGFloat = 12
-                    let colWidth = (geo.size.width - spacing * 3) / 2
-                    let cols = columns(colWidth: colWidth, spacing: spacing)
-                    let viewportH = geo.size.height
-
-                    ScrollView {
-                        HStack(alignment: .top, spacing: spacing) {
-                            masonryColumn(
-                                screenshots: cols.left,
+                ScrollView {
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.fixed(colWidth), spacing: hSpacing),
+                            GridItem(.fixed(colWidth), spacing: hSpacing)
+                        ],
+                        spacing: 44
+                    ) {
+                        ForEach(availableTypes, id: \.self) { type in
+                            PuddleGroupCard(
+                                type: type,
+                                screenshots: screenshotsForType(type),
                                 colWidth: colWidth,
-                                spacing: spacing
-                            )
-                            masonryColumn(
-                                screenshots: cols.right,
-                                colWidth: colWidth,
-                                spacing: spacing
+                                hasDot: hasUnprocessed(for: type)
                             )
                         }
-                        .padding(spacing)
                     }
-                    .coordinateSpace(.named("scroll"))
-                    .contentMargins(.bottom, 80, for: .scrollContent)
-                    .onPreferenceChange(CellDatesKey.self) { items in
-                        visibleDates = items
-                            .filter { $0.maxY > 0 && $0.minY < viewportH }
-                            .map(\.date)
-                    }
-                    .onScrollGeometryChange(for: CGFloat.self) { geo in
-                        geo.contentOffset.y
-                    } action: { _, newY in
-                        let show: Bool
-                        if newY <= 0 {
-                            show = true
-                        } else if tabsVisible {
-                            show = (newY - lastTabChangeOffset) < 50
-                        } else {
-                            show = (lastTabChangeOffset - newY) > 10
-                        }
-                        if show != tabsVisible {
-                            lastTabChangeOffset = newY
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                                tabsVisible = show
-                            }
-                        }
-                    }
+                    .padding(.horizontal, hSpacing)
+                    .padding(.top, 16)
                 }
+                .contentMargins(.bottom, 80, for: .scrollContent)
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
@@ -270,41 +155,6 @@ struct HomeView: View {
         }
     }
 
-    @ViewBuilder
-    private func masonryColumn(screenshots: [Screenshot], colWidth: CGFloat, spacing: CGFloat) -> some View {
-        LazyVStack(spacing: spacing) {
-            ForEach(screenshots) { screenshot in
-                let h = cellHeight(for: screenshot, colWidth: colWidth)
-                NavigationLink(destination: ScreenshotDetailView(screenshot: screenshot)) {
-                    MasonryImageCell(screenshot: screenshot, width: colWidth, clipHeight: h)
-                }
-                .buttonStyle(.plain)
-                .contextMenu { deleteButton(for: screenshot) }
-                .overlay(
-                    GeometryReader { cellGeo in
-                        let frame = cellGeo.frame(in: .named("scroll"))
-                        let date = screenshot.creationDate ?? screenshot.addedToLibraryDate
-                        Color.clear.preference(
-                            key: CellDatesKey.self,
-                            value: [CellDateItem(date: date, minY: frame.minY, maxY: frame.maxY)]
-                        )
-                    }
-                )
-            }
-        }
-        .frame(width: colWidth)
-    }
-
-    @ViewBuilder
-    private func deleteButton(for screenshot: Screenshot) -> some View {
-        Button(role: .destructive) {
-            modelContext.delete(screenshot)
-            try? modelContext.save()
-        } label: {
-            Label("Delete", systemImage: "trash")
-        }
-    }
-
     private func startPipeline() {
         let container = modelContext.container
         let provider = AIProvider(rawValue: aiProviderRaw) ?? .openai
@@ -314,100 +164,94 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Puddle Tab Strip
 
-private struct PuddleTabStrip: View {
-    @Binding var selected: ContentType?
-    let available: [ContentType]
+// MARK: - Puddle Group Card
+
+
+private struct PuddleGroupCard: View {
+    let type: ContentType
     let screenshots: [Screenshot]
-
-    private static let incompleteStatuses: Set<String> = [
-        ProcessingStatus.pending.rawValue,
-        ProcessingStatus.ocrInProgress.rawValue,
-        ProcessingStatus.ocrComplete.rawValue,
-        ProcessingStatus.openAIInProgress.rawValue
-    ]
-
-    private func hasUnprocessed(for type: ContentType?) -> Bool {
-        if let type {
-            return screenshots.contains {
-                ($0.contentType ?? "") == type.rawValue &&
-                Self.incompleteStatuses.contains($0.processingStatus)
-            }
-        } else {
-            return screenshots.contains { Self.incompleteStatuses.contains($0.processingStatus) }
-        }
-    }
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                PuddleTabPill(
-                    icon: "photo.stack",
-                    label: "All",
-                    isSelected: selected == nil,
-                    hasDot: hasUnprocessed(for: nil)
-                ) { selected = nil }
-
-                ForEach(available, id: \.self) { type in
-                    PuddleTabPill(
-                        icon: type.sfSymbol,
-                        label: type.displayName,
-                        isSelected: selected == type,
-                        hasDot: hasUnprocessed(for: type)
-                    ) { selected = type }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-        }
-    }
-}
-
-private struct PuddleTabPill: View {
-    let icon: String
-    let label: String
-    let isSelected: Bool
+    let colWidth: CGFloat
     let hasDot: Bool
-    let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 15, weight: .medium))
-                Text(label)
-                    .font(.system(size: 15, weight: .medium))
-                if hasDot {
-                    Circle()
-                        .fill(.red)
-                        .frame(width: 7, height: 7)
+        VStack(spacing: 16) {
+            PuddleStackView(screenshots: screenshots, colWidth: colWidth)
+
+            VStack(spacing: 5) {
+                HStack(spacing: 7) {
+                    Text(type.displayName)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    Image(systemName: type.sfSymbol)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+
+                    if hasDot {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 8, height: 8)
+                    }
                 }
+
+                Text(screenshots.count.formatted())
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 11)
-            .opacity(isSelected ? 1 : 0.55)
         }
-        .buttonStyle(.plain)
-        .glassEffect(
-            isSelected ? .regular.interactive() : .regular,
-            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-        )
-        .animation(.easeInOut(duration: 0.15), value: isSelected)
+        .frame(width: colWidth)
     }
 }
 
-// MARK: - Masonry Cell
 
-private struct MasonryImageCell: View {
+// MARK: - Puddle Stack View
+
+private struct PuddleStackView: View {
+    let screenshots: [Screenshot]
+    let colWidth: CGFloat
+
+    private var cardWidth: CGFloat { colWidth * 0.50 }
+    private var cardHeight: CGFloat { cardWidth * (212 / 124) }
+
+    private var configs: [(transform: CGAffineTransform, scale: CGFloat, yOffset: CGFloat)] {
+        let s = cardWidth / 124
+        return [
+            (CGAffineTransform(rotationAngle: -5 * .pi / 180).translatedBy(x: -52 * s, y: 20 * s), 0.88, -5),  // bottom
+            (CGAffineTransform(rotationAngle:  9 * .pi / 180).translatedBy(x:  56 * s, y:  9 * s), 0.88, -5),  // middle
+            (CGAffineTransform(rotationAngle:  3 * .pi / 180),                                       1.00,   0),  // top
+        ]
+    }
+
+    var body: some View {
+        let cards = Array(screenshots.prefix(3))
+        let n = cards.count
+        let ordered = Array(cards.reversed()) // back → front
+
+        ZStack {
+            ForEach(Array(ordered.enumerated()), id: \.offset) { localIdx, screenshot in
+                let configIdx = (configs.count - n) + localIdx
+                let cfg = configs[configIdx]
+                StackCardView(screenshot: screenshot, width: cardWidth, height: cardHeight)
+                    .scaleEffect(n == 1 ? 1 : cfg.scale)
+                    .transformEffect(n == 1 ? .identity : cfg.transform)
+                    .offset(y: n == 1 ? 0 : cfg.yOffset)
+            }
+        }
+        .frame(width: colWidth, height: cardHeight + 40)
+    }
+}
+
+
+// MARK: - Stack Card View
+
+private struct StackCardView: View {
     let screenshot: Screenshot
     let width: CGFloat
-    var clipHeight: CGFloat? = nil
+    let height: CGFloat
     @State private var image: UIImage?
-
-    private var height: CGFloat {
-        clipHeight ?? (width / 0.46)
-    }
 
     var body: some View {
         Group {
@@ -417,25 +261,24 @@ private struct MasonryImageCell: View {
                     .aspectRatio(contentMode: .fill)
             } else {
                 Rectangle()
-                    .fill(.secondary.opacity(0.1))
+                    .fill(.secondary.opacity(0.15))
             }
         }
         .frame(width: width, height: height)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .shadow(color: .black.opacity(0.38), radius: 16, x: 0, y: 8)
         .onAppear(perform: loadImage)
     }
 
     private func loadImage() {
         let result = PHAsset.fetchAssets(withLocalIdentifiers: [screenshot.localIdentifier], options: nil)
         guard let asset = result.firstObject else { return }
-
         let options = PHImageRequestOptions()
         options.deliveryMode = .opportunistic
         options.isNetworkAccessAllowed = true
-
         PHImageManager.default().requestImage(
             for: asset,
-            targetSize: CGSize(width: 500, height: 1000),
+            targetSize: CGSize(width: 400, height: 600),
             contentMode: .aspectFill,
             options: options
         ) { img, _ in
@@ -444,6 +287,7 @@ private struct MasonryImageCell: View {
         }
     }
 }
+
 
 // MARK: - Floating Search Bar
 
