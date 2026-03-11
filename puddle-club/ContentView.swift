@@ -17,6 +17,10 @@ struct ContentView: View {
             .safeAreaInset(edge: .bottom) {
                 FloatingSearchBar(text: $searchText, isFocused: $isSearchFocused)
                     .padding(.horizontal, 16)
+                    .padding(.bottom, isSearchFocused ? 12 : -12)
+            }
+            .onTapGesture {
+                isSearchFocused = false
             }
             .onAppear {
                 if (try? KeychainService.loadAPIKey()) == nil {

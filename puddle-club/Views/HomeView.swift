@@ -129,6 +129,7 @@ struct HomeView: View {
                     .padding(.top, 16)
                 }
                 .contentMargins(.bottom, 80, for: .scrollContent)
+                .scrollDismissesKeyboard(.immediately)
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
