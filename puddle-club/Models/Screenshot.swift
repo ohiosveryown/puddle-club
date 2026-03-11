@@ -20,6 +20,7 @@ final class Screenshot {
     var moodTags: [String]
     var aestheticNotes: [String]?
     var openAIProcessedAt: Date?
+    var sourceURL: String?
     @Relationship(deleteRule: .cascade) var entities: [ScreenshotEntity]
     @Relationship(deleteRule: .cascade) var tags: [ScreenshotTag]
 

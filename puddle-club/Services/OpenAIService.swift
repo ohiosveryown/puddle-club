@@ -10,6 +10,7 @@ struct OpenAIClassificationResult: Sendable, Decodable {
     let dominantColors: [String]
     let moodTags: [String]
     let aestheticNotes: [String]
+    let sourceURL: String?
 
     nonisolated init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -22,11 +23,12 @@ struct OpenAIClassificationResult: Sendable, Decodable {
         dominantColors = (try? c.decodeIfPresent([String].self, forKey: .dominantColors)) ?? []
         moodTags = (try? c.decodeIfPresent([String].self, forKey: .moodTags)) ?? []
         aestheticNotes = (try? c.decodeIfPresent([String].self, forKey: .aestheticNotes)) ?? []
+        sourceURL = try? c.decodeIfPresent(String.self, forKey: .sourceURL)
     }
 
     private enum CodingKeys: String, CodingKey {
         case title, contentType, contentTypeConfidence, entities, tags
-        case reflection, dominantColors, moodTags, aestheticNotes
+        case reflection, dominantColors, moodTags, aestheticNotes, sourceURL
     }
 }
 
@@ -55,7 +57,7 @@ actor OpenAIService {
 
     private let systemPrompt = """
         Return ONLY valid JSON with keys: title, contentType, contentTypeConfidence, \
-        entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes. \
+        entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes, sourceURL. \
         title should be a concise name for the subject (e.g. "Carlsbad Flower Fields", "Kendrick Lamar", "Nike Air Max 90"). \
         contentType must be exactly one of: food, music, travel, design, fashion, product, architecture, art, text, social, event, person, nature, woodworking, unknown. \
         reflection should be 1–2 sentences, written directly to the user in the second person ("you"), \
@@ -63,7 +65,13 @@ actor OpenAIService {
         Focus on mood and the user's relationship to the content, not a dry summary of what's on screen. \
         aestheticNotes should be an array of 1–4 short phrases (e.g. "1980s film", "Organic forms", \
         "Art book layout energy", "Museum-catalog feel") that describe the overall aesthetic and visual/typographic vibe, \
-        based on the image and any OCR text.
+        based on the image and any OCR text. \
+        sourceURL: if this is a social media post (Twitter/X, Instagram, TikTok, Reddit, YouTube, LinkedIn, \
+        Threads, Facebook, Pinterest, etc.), return the most direct URL possible — prefer the full post URL \
+        (e.g. "https://x.com/user/status/123", "https://instagram.com/p/ABC", "https://reddit.com/r/sub/comments/id/") \
+        if the post ID or full URL is visible anywhere in the image or OCR text. If only the author handle is \
+        identifiable, return the profile URL (e.g. "https://instagram.com/username"). \
+        If this is not a social media post, omit sourceURL or return null.
         """
 
     func classifyText(ocrText: String, nlpEntities: [RawEntity]) async throws -> OpenAIClassificationResult {
@@ -78,8 +86,8 @@ actor OpenAIService {
         let body: [String: Any] = [
             "model": textModel,
             "response_format": ["type": "json_object"],
-            "temperature": 0.2,
-            "max_tokens": 512,
+            "temperature": 0,
+            "max_tokens": 1024,
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": userContent]
@@ -110,8 +118,8 @@ actor OpenAIService {
         let body: [String: Any] = [
             "model": visionModel,
             "response_format": ["type": "json_object"],
-            "temperature": 0.2,
-            "max_tokens": 512,
+            "temperature": 0,
+            "max_tokens": 1024,
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": userContent]

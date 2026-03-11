@@ -367,29 +367,32 @@ private struct ScreenshotPageView: View {
     // MARK: - Action resolution
 
     private var primaryAction: ScreenshotAction? {
-        // 1. URL detected in OCR text
-        if let ocrText = screenshot.ocrText,
-           let url = firstURL(in: ocrText) {
-            let enhanced = enhancedSocialURL(url, ocrText: ocrText) ?? url
-            return .openURL(enhanced)
-        }
-
         let openAIEntities = screenshot.entities.filter { $0.source == "openai" }
-
-        // 2. Search for actionable entity types directly — don't rely on a single
-        //    top-confidence entity, since a high-confidence non-actionable entity
-        //    (e.g. "flowers · flora") would otherwise block a lower-confidence
-        //    actionable one (e.g. "Carlsbad Flower Fields · location").
-
         let mapsTypes: Set<EntityType> = [.restaurant, .venue, .hotel, .location]
         let musicTypes: Set<EntityType> = [.artist, .band, .album]
 
+        // 1. Maps entity always wins — location intent is more actionable than any URL
         if let entity = openAIEntities
             .filter({ mapsTypes.contains(EntityType(rawValue: $0.entityType) ?? .other) })
             .max(by: { $0.confidence < $1.confidence }) {
             return .openInMaps(query: entity.name)
         }
 
+        // 2. AI-extracted source URL — only when it points to a specific post, not a root domain
+        if let raw = screenshot.sourceURL,
+           let url = URL(string: raw),
+           !url.path.isEmpty, url.path != "/" {
+            return .openURL(url)
+        }
+
+        // 3. URL detected in OCR text
+        if let ocrText = screenshot.ocrText,
+           let url = firstURL(in: ocrText) {
+            let enhanced = enhancedSocialURL(url, ocrText: ocrText) ?? url
+            return .openURL(enhanced)
+        }
+
+        // 4. Music entity
         if let entity = openAIEntities
             .filter({ musicTypes.contains(EntityType(rawValue: $0.entityType) ?? .other) })
             .max(by: { $0.confidence < $1.confidence }) {
