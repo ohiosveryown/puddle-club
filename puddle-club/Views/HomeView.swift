@@ -61,6 +61,7 @@ private struct CellDatesKey: PreferenceKey {
     }
 }
 
+
 // MARK: - HomeView
 
 struct HomeView: View {
@@ -75,6 +76,8 @@ struct HomeView: View {
 
     @State private var selectedContentType: ContentType? = nil
     @State private var visibleDates: [Date] = []
+    @State private var tabsVisible: Bool = true
+    @State private var lastTabChangeOffset: CGFloat = 0
 
     var availableTypes: [ContentType] {
         let seen = Set(
@@ -166,11 +169,17 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PuddleTabStrip(
-                    selected: $selectedContentType,
-                    available: availableTypes,
-                    screenshots: Array(screenshots)
-                )
+                ZStack {
+                    if tabsVisible {
+                        PuddleTabStrip(
+                            selected: $selectedContentType,
+                            available: availableTypes,
+                            screenshots: Array(screenshots)
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
+                .clipped()
 
                 if let label = dateRangeLabel {
                     Text(label)
@@ -208,6 +217,24 @@ struct HomeView: View {
                         visibleDates = items
                             .filter { $0.maxY > 0 && $0.minY < viewportH }
                             .map(\.date)
+                    }
+                    .onScrollGeometryChange(for: CGFloat.self) { geo in
+                        geo.contentOffset.y
+                    } action: { _, newY in
+                        let show: Bool
+                        if newY <= 0 {
+                            show = true
+                        } else if tabsVisible {
+                            show = (newY - lastTabChangeOffset) < 50
+                        } else {
+                            show = (lastTabChangeOffset - newY) > 10
+                        }
+                        if show != tabsVisible {
+                            lastTabChangeOffset = newY
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                                tabsVisible = show
+                            }
+                        }
                     }
                 }
             }
