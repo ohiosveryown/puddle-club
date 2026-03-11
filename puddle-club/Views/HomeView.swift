@@ -344,6 +344,8 @@ private struct PuddleTabPill: View {
     let hasDot: Bool
     let action: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
@@ -361,12 +363,30 @@ private struct PuddleTabPill: View {
             .padding(.vertical, 11)
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.white.opacity(isSelected ? 0.18 : 0.08))
+                    .fill(backgroundColor)
             )
-            .foregroundStyle(isSelected ? .white : .white.opacity(0.5))
+            .foregroundStyle(foregroundColor)
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.15), value: isSelected)
+    }
+
+    private var backgroundColor: Color {
+        switch colorScheme {
+        case .dark:
+            return .white.opacity(isSelected ? 0.22 : 0.10)
+        default:
+            return .black.opacity(isSelected ? 0.08 : 0.03)
+        }
+    }
+
+    private var foregroundColor: Color {
+        switch colorScheme {
+        case .dark:
+            return isSelected ? .white : .white.opacity(0.55)
+        default:
+            return isSelected ? .black : .black.opacity(0.55)
+        }
     }
 }
 
