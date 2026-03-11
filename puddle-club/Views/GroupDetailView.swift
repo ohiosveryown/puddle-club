@@ -99,6 +99,13 @@ private struct MasonryImageCell: View {
     let width: CGFloat
     var clipHeight: CGFloat? = nil
     @State private var image: UIImage?
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var borderColor: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.32)
+            : Color.black.opacity(0.10)
+    }
 
     private var height: CGFloat { clipHeight ?? (width / 0.46) }
 
@@ -115,6 +122,7 @@ private struct MasonryImageCell: View {
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(borderColor, lineWidth: 0.5))
         .onAppear(perform: loadImage)
     }
 
