@@ -66,12 +66,11 @@ actor OpenAIService {
         aestheticNotes should be an array of 1–4 short phrases (e.g. "1980s film", "Organic forms", \
         "Art book layout energy", "Museum-catalog feel") that describe the overall aesthetic and visual/typographic vibe, \
         based on the image and any OCR text. \
-        sourceURL: if this is a social media post (Twitter/X, Instagram, TikTok, Reddit, YouTube, LinkedIn, \
-        Threads, Facebook, Pinterest, etc.), return the most direct URL possible — prefer the full post URL \
-        (e.g. "https://x.com/user/status/123", "https://instagram.com/p/ABC", "https://reddit.com/r/sub/comments/id/") \
-        if the post ID or full URL is visible anywhere in the image or OCR text. If only the author handle is \
-        identifiable, return the profile URL (e.g. "https://instagram.com/username"). \
-        If this is not a social media post, omit sourceURL or return null.
+        sourceURL: return the most relevant URL visible anywhere in the image (address bar, footer, watermark, \
+        caption, etc.). For social media posts prefer the direct post URL \
+        (e.g. "https://x.com/user/status/123", "https://instagram.com/p/ABC"); if only a handle is visible \
+        return the profile URL (e.g. "https://instagram.com/username"). For any other website, return the URL \
+        or domain as-is (e.g. "https://ohiosveryown.co"). Omit or return null only if no URL is present.
         """
 
     func classifyText(ocrText: String, nlpEntities: [RawEntity]) async throws -> OpenAIClassificationResult {

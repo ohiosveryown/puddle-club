@@ -371,25 +371,34 @@ private struct ScreenshotPageView: View {
         let mapsTypes: Set<EntityType> = [.restaurant, .venue, .hotel, .location]
         let musicTypes: Set<EntityType> = [.artist, .band, .album]
 
-        // 1. Maps entity always wins — location intent is more actionable than any URL
-        if let entity = openAIEntities
-            .filter({ mapsTypes.contains(EntityType(rawValue: $0.entityType) ?? .other) })
-            .max(by: { $0.confidence < $1.confidence }) {
-            return .openInMaps(query: entity.name)
+        // 1. Travel always opens in Maps
+        if ContentType(rawValue: screenshot.contentType ?? "") == .travel {
+            let mapsQuery = openAIEntities
+                .filter({ mapsTypes.contains(EntityType(rawValue: $0.entityType) ?? .other) })
+                .max(by: { $0.confidence < $1.confidence })?.name
+                ?? screenshot.title
+                ?? "Travel"
+            return .openInMaps(query: mapsQuery)
         }
 
-        // 2. AI-extracted source URL — only when it points to a specific post, not a root domain
+        // 2. AI-extracted source URL — social post/profile takes priority
         if let raw = screenshot.sourceURL,
-           let url = URL(string: raw),
-           !url.path.isEmpty, url.path != "/" {
+           let url = URL(string: raw) {
             return .openURL(url)
         }
 
-        // 3. URL detected in OCR text
+        // 2. URL detected in OCR text
         if let ocrText = screenshot.ocrText,
            let url = firstURL(in: ocrText) {
             let enhanced = enhancedSocialURL(url, ocrText: ocrText) ?? url
             return .openURL(enhanced)
+        }
+
+        // 3. Maps entity
+        if let entity = openAIEntities
+            .filter({ mapsTypes.contains(EntityType(rawValue: $0.entityType) ?? .other) })
+            .max(by: { $0.confidence < $1.confidence }) {
+            return .openInMaps(query: entity.name)
         }
 
         // 4. Music entity

@@ -111,7 +111,10 @@ struct HomeView: View {
                     ) {
                         ForEach(availableTypes, id: \.self) { type in
                             let typeScreenshots = screenshotsForType(type)
-                            NavigationLink(destination: GroupDetailView(type: type, screenshots: typeScreenshots)) {
+                            let destination: AnyView = typeScreenshots.count == 1
+                                ? AnyView(ScreenshotDetailView(screenshot: typeScreenshots[0]))
+                                : AnyView(GroupDetailView(type: type, screenshots: typeScreenshots))
+                            NavigationLink(destination: destination) {
                                 PuddleGroupCard(
                                     type: type,
                                     screenshots: typeScreenshots,
