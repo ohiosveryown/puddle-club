@@ -254,6 +254,84 @@ private struct HeaderBlurOverlay: View {
     }
 }
 
+// MARK: - Full screen image viewer
+
+private struct FullScreenImageView: View {
+    let image: UIImage
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var scale: CGFloat = 1.0
+    @GestureState private var magnifyBy: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @GestureState private var dragOffset: CGSize = .zero
+
+    private var currentScale: CGFloat { scale * magnifyBy }
+    private var currentOffset: CGSize {
+        CGSize(width: offset.width + dragOffset.width,
+               height: offset.height + dragOffset.height)
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .scaleEffect(currentScale)
+                .offset(currentOffset)
+                .gesture(
+                    MagnificationGesture()
+                        .updating($magnifyBy) { value, state, _ in state = value }
+                        .onEnded { value in
+                            scale *= value
+                            if scale < 1 {
+                                withAnimation(.spring(response: 0.3)) {
+                                    scale = 1
+                                    offset = .zero
+                                }
+                            }
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture()
+                        .updating($dragOffset) { value, state, _ in state = value.translation }
+                        .onEnded { value in
+                            if scale <= 1 && value.translation.height > 80 {
+                                dismiss()
+                            } else {
+                                offset = CGSize(
+                                    width: offset.width + value.translation.width,
+                                    height: offset.height + value.translation.height
+                                )
+                            }
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring(response: 0.3)) {
+                        if scale > 1 {
+                            scale = 1
+                            offset = .zero
+                        } else {
+                            scale = 2
+                        }
+                    }
+                }
+        }
+        .overlay(alignment: .topLeading) {
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(12)
+                    .background(Color.white.opacity(0.15), in: Circle())
+            }
+            .padding()
+        }
+    }
+}
+
+
 // MARK: - Per-screenshot page content
 
 private struct ScreenshotPageView: View {
@@ -262,6 +340,7 @@ private struct ScreenshotPageView: View {
 
     @State private var image: UIImage? = nil
     @State private var viewportSize: CGSize = .zero
+    @State private var isFullScreen = false
     @ScaledMetric(relativeTo: .footnote) private var aestheticNotesFontSize: CGFloat = 13
 
     // Image layout (uses viewport from GeometryReader to avoid UIScreen.main)
@@ -393,6 +472,7 @@ private struct ScreenshotPageView: View {
                     .resizable()
                     .frame(width: targetWidth, height: targetHeight)
                     .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .onTapGesture { isFullScreen = true }
             } else {
                 Rectangle()
                     .fill(.secondary.opacity(0.1))
@@ -407,6 +487,9 @@ private struct ScreenshotPageView: View {
         .padding(.horizontal, 12)
         .padding(.top, 84)
         .frame(maxWidth: .infinity, alignment: .center)
+        .fullScreenCover(isPresented: $isFullScreen) {
+            if let image { FullScreenImageView(image: image) }
+        }
     }
 
     @ViewBuilder
