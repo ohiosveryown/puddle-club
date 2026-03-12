@@ -177,6 +177,7 @@ actor ProcessingPipeline {
 
             do {
                 let imageData = try await photoService.fetchHighResImageData(for: identifier)
+                screenshot.imageData = imageData
                 let patternContext = loadPatternContext(for: screenshot)
                 let result = try await provider == .anthropic
                     ? anthropicService.classifyImage(imageData: imageData, ocrText: nil, patternContext: patternContext)

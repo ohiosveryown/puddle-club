@@ -23,6 +23,8 @@ final class Screenshot {
     var sourceURL: String?
     var musicClient: String?
     var isNew: Bool
+    var isDeletedFromPhotos: Bool
+    @Attribute(.externalStorage) var imageData: Data?
     @Relationship(deleteRule: .cascade) var entities: [ScreenshotEntity]
     @Relationship(deleteRule: .cascade) var tags: [ScreenshotTag]
 
@@ -40,6 +42,7 @@ final class Screenshot {
         self.entities = []
         self.tags = []
         self.isNew = true
+        self.isDeletedFromPhotos = false
     }
 }
 

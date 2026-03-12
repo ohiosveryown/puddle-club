@@ -157,6 +157,20 @@ struct ScreenshotDetailView: View {
         try? modelContext.save()
     }
 
+    private func deleteFromPhotos() {
+        let result = PHAsset.fetchAssets(withLocalIdentifiers: [currentScreenshot.localIdentifier], options: nil)
+        guard let asset = result.firstObject else { return }
+        PHPhotoLibrary.shared().performChanges {
+            PHAssetChangeRequest.deleteAssets([asset] as NSArray)
+        } completionHandler: { success, _ in
+            if success {
+                DispatchQueue.main.async {
+                    currentScreenshot.isDeletedFromPhotos = true
+                }
+            }
+        }
+    }
+
     private func createdDateString(for shot: Screenshot) -> String {
         let date = shot.creationDate ?? shot.addedToLibraryDate
         return date.formatted(.dateTime.month(.abbreviated).day().year())
@@ -201,9 +215,18 @@ struct ScreenshotDetailView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) { confirmDelete = true } label: {
-                    Image(systemName: "trash")
+                Menu {
+                    Button(role: .destructive) { confirmDelete = true } label: {
+                        Label("Hide screenshot", systemImage: "slash.circle")
+                    }
+                    Button(role: .destructive, action: deleteFromPhotos) {
+                        Label("Delete from Photos", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 36, height: 36)
                 }
+                .buttonStyle(.plain)
             }
         }
         .confirmationDialog("Delete this screenshot?", isPresented: $confirmDelete, titleVisibility: .visible) {
@@ -403,6 +426,7 @@ private struct ScreenshotPageView: View {
                         .padding(.horizontal)
                         .padding(.bottom, 24)
                     }
+
 
                     // MARK: Reflection
                     if let desc = screenshot.reflection {
@@ -629,14 +653,20 @@ private struct ScreenshotPageView: View {
     // MARK: - Image loading
     private func loadImage() {
         let result = PHAsset.fetchAssets(withLocalIdentifiers: [screenshot.localIdentifier], options: nil)
-        guard let asset = result.firstObject else { return }
+
+        // Asset deleted from Photos — fall back to cached image data
+        guard let asset = result.firstObject else {
+            if let data = screenshot.imageData, let uiImage = UIImage(data: data) {
+                self.image = uiImage
+            }
+            return
+        }
 
         let options = PHImageRequestOptions()
         options.deliveryMode = .highQualityFormat
         options.isNetworkAccessAllowed = true
         options.resizeMode = .fast
 
-        // Use a generous fixed size; PHImageManager will scale down as needed
         let size = CGSize(width: 1170, height: 2532)
 
         PHImageManager.default().requestImage(
@@ -649,6 +679,7 @@ private struct ScreenshotPageView: View {
             DispatchQueue.main.async { self.image = result }
         }
     }
+
 }
 
 // MARK: - Tag cloud
