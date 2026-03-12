@@ -59,12 +59,6 @@ struct HomeView: View {
     @State private var pipeline: ProcessingPipeline?
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.openai.rawValue
 
-    private static let incompleteStatuses: Set<String> = [
-        ProcessingStatus.pending.rawValue,
-        ProcessingStatus.ocrInProgress.rawValue,
-        ProcessingStatus.ocrComplete.rawValue,
-        ProcessingStatus.openAIInProgress.rawValue
-    ]
 
     var availableTypes: [ContentType] {
         let seen = Set(
@@ -89,10 +83,8 @@ struct HomeView: View {
         filteredScreenshots.filter { ($0.contentType ?? "") == type.rawValue }
     }
 
-    private func hasUnprocessed(for type: ContentType) -> Bool {
-        screenshotsForType(type).contains {
-            Self.incompleteStatuses.contains($0.processingStatus)
-        }
+    private func hasNew(for type: ContentType) -> Bool {
+        screenshotsForType(type).contains { $0.isNew }
     }
 
     var body: some View {
@@ -119,7 +111,7 @@ struct HomeView: View {
                                     type: type,
                                     screenshots: typeScreenshots,
                                     colWidth: colWidth,
-                                    hasDot: hasUnprocessed(for: type)
+                                    hasDot: hasNew(for: type)
                                 )
                             }
                             .buttonStyle(.plain)

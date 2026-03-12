@@ -100,6 +100,12 @@ struct ScreenshotDetailView: View {
         screenshots.firstIndex(where: { $0.localIdentifier == currentLocalIdentifier })
     }
 
+    private func markViewed(_ shot: Screenshot) {
+        guard shot.isNew else { return }
+        shot.isNew = false
+        try? modelContext.save()
+    }
+
     private func createdDateString(for shot: Screenshot) -> String {
         let date = shot.creationDate ?? shot.addedToLibraryDate
         return date.formatted(.dateTime.month(.abbreviated).day().year())
@@ -127,6 +133,8 @@ struct ScreenshotDetailView: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
+        .onAppear { markViewed(currentScreenshot) }
+        .onChange(of: currentLocalIdentifier) { markViewed(currentScreenshot) }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .ignoresSafeArea(edges: .top)

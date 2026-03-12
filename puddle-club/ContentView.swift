@@ -28,9 +28,6 @@ struct ContentView: View {
                     .opacity(searchBarVisibility.isHidden ? 0 : 1)
                     .animation(.easeInOut(duration: 0.2), value: searchBarVisibility.isHidden)
             }
-            .onTapGesture {
-                isSearchFocused = false
-            }
             .onAppear {
                 if (try? KeychainService.loadAPIKey()) == nil {
                     showAPIKeyPrompt = true

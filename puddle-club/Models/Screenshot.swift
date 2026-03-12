@@ -21,6 +21,7 @@ final class Screenshot {
     var aestheticNotes: [String]?
     var openAIProcessedAt: Date?
     var sourceURL: String?
+    var isNew: Bool
     @Relationship(deleteRule: .cascade) var entities: [ScreenshotEntity]
     @Relationship(deleteRule: .cascade) var tags: [ScreenshotTag]
 
@@ -37,6 +38,7 @@ final class Screenshot {
         self.aestheticNotes = []
         self.entities = []
         self.tags = []
+        self.isNew = true
     }
 }
 

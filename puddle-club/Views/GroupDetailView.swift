@@ -51,6 +51,7 @@ struct GroupDetailView: View {
             }
             .contentMargins(.bottom, 80, for: .scrollContent)
         }
+        .onAppear { markAllViewed() }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -63,6 +64,15 @@ struct GroupDetailView: View {
                 }
             }
         }
+    }
+
+    private func markAllViewed() {
+        var changed = false
+        for s in screenshots where s.isNew {
+            s.isNew = false
+            changed = true
+        }
+        if changed { try? modelContext.save() }
     }
 
     @ViewBuilder
