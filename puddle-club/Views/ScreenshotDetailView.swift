@@ -382,6 +382,11 @@ struct ScreenshotDetailView: View {
         ContentType(rawValue: currentScreenshot.contentType ?? "")?.displayName ?? "Unassigned"
     }
 
+    private var currentTagCountLabel: String {
+        let count = currentScreenshot.tags.count
+        return count == 1 ? "1 tag" : "\(count) tags"
+    }
+
     var body: some View {
         TabView(selection: $currentLocalIdentifier) {
             ForEach(screenshots) { shot in
@@ -412,7 +417,9 @@ struct ScreenshotDetailView: View {
                         Button {
                             isShowingTagEditor = true
                         } label: {
-                            Label("Edit tags", systemImage: "tag")
+                            Text("Edit tags")
+                            Text(currentTagCountLabel)
+                            Image(systemName: "tag")
                         }
                         Button {
                             isShowingPuddleEditor = true
