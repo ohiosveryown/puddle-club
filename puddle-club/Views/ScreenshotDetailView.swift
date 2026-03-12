@@ -190,6 +190,7 @@ struct ScreenshotDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var activeConfirmationModal: DetailConfirmationModal?
     @State private var isShowingTagEditor = false
+    @State private var isShowingPuddleEditor = false
     @State private var scrollProgress: CGFloat = 0
 
     @State private var currentLocalIdentifier: String
@@ -377,6 +378,10 @@ struct ScreenshotDetailView: View {
         }
     }
 
+    private var currentPuddleName: String {
+        ContentType(rawValue: currentScreenshot.contentType ?? "")?.displayName ?? "Unassigned"
+    }
+
     var body: some View {
         TabView(selection: $currentLocalIdentifier) {
             ForEach(screenshots) { shot in
@@ -407,12 +412,17 @@ struct ScreenshotDetailView: View {
                         Button {
                             isShowingTagEditor = true
                         } label: {
-                            Label("Edit tag(s)", systemImage: "tag")
+                            Label("Edit tags", systemImage: "tag")
                         }
-                    }
+                        Button {
+                            isShowingPuddleEditor = true
+                        } label: {
+                            Text("Change Puddle")
+                            Text(currentPuddleName)
+                            Image(systemName: "drop")
+                        }
 
-                    if let action = menuAction, let url = action.url {
-                        Section {
+                        if let action = menuAction, let url = action.url {
                             Button {
                                 openURL(url)
                             } label: {
@@ -443,6 +453,9 @@ struct ScreenshotDetailView: View {
                 screenshot: currentScreenshot,
                 availableTagValues: Array(Set(allTags.map(\.value))).sorted()
             )
+        }
+        .sheet(isPresented: $isShowingPuddleEditor) {
+            PuddleEditorSheet(screenshot: currentScreenshot)
         }
         .alert(
             activeConfirmationModal?.title ?? "",
@@ -573,7 +586,56 @@ private struct TagEditorSheet: View {
                     }
                 }
             }
-            .navigationTitle("Edit tag(s)")
+            .navigationTitle("Edit tags")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct PuddleEditorSheet: View {
+    let screenshot: Screenshot
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    private var availablePuddles: [ContentType] {
+        ContentType.allCases.filter { $0 != .unknown }
+    }
+
+    private func assign(_ contentType: ContentType) {
+        screenshot.contentType = contentType.rawValue
+        try? modelContext.save()
+        dismiss()
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Existing Puddles") {
+                    ForEach(availablePuddles, id: \.self) { puddle in
+                        Button {
+                            assign(puddle)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Label(puddle.displayName, systemImage: puddle.sfSymbol)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if screenshot.contentType == puddle.rawValue {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle("Change Puddle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
