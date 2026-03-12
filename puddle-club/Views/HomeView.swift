@@ -227,6 +227,16 @@ private struct PuddleStackView: View {
         ]
     }
 
+    private func deterministicRotation(for id: String) -> CGAffineTransform {
+        var hash: UInt64 = 5381
+        for c in id.unicodeScalars { hash = hash &* 31 &+ UInt64(c.value) }
+        let t = CGFloat(hash % 1000) / 1000.0
+        let degrees = hash.isMultiple(of: 2)
+            ? -(0.5 + t * 1.5)  // -0.5º to -2º
+            : (0.5 + t * 1.5)   // +0.5º to +2º
+        return CGAffineTransform(rotationAngle: degrees * .pi / 180)
+    }
+
     var body: some View {
         let cards = Array(screenshots.prefix(3))
         let n = cards.count
@@ -242,6 +252,7 @@ private struct PuddleStackView: View {
                     .offset(y: n == 1 ? 0 : cfg.yOffset)
             }
         }
+        .transformEffect(deterministicRotation(for: cards[0].localIdentifier))
         .frame(width: colWidth, height: cardHeight + 20)
     }
 }

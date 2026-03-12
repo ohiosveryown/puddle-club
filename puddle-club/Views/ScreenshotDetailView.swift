@@ -346,7 +346,7 @@ private struct ScreenshotPageView: View {
         .shadow(color: imageShadowColor.opacity(0.09), radius: 18, x: 0, y: 4)
         .shadow(color: imageShadowColor.opacity(0.06), radius: 5, x: 0, y: 1)
         .padding(.horizontal, 12)
-        .padding(.top, 64)
+        .padding(.top, 84)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
@@ -390,7 +390,8 @@ private struct ScreenshotPageView: View {
         // 2. AI-extracted source URL — social post/profile takes priority
         if let raw = screenshot.sourceURL,
            let url = URL(string: raw) {
-            return .openURL(url)
+            let enhanced = enhancedSocialURL(url, ocrText: screenshot.ocrText ?? "") ?? url
+            return .openURL(enhanced)
         }
 
         // 2. URL detected in OCR text
