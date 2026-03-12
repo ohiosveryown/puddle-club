@@ -10,6 +10,32 @@ enum ScreenshotAction {
     case searchMusic(query: String, client: String?)
     case searchWeb(query: String)
 
+    var title: String {
+        switch self {
+        case .openURL:
+            return "Visit Website"
+        case .openInMaps:
+            return "Open in Maps"
+        case .searchMusic(_, let client):
+            return "Search in \(MusicClientInfo.displayName(for: client))"
+        case .searchWeb:
+            return "Search the Web"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .openURL(let url):
+            return url.host() ?? url.absoluteString
+        case .openInMaps(let query):
+            return query
+        case .searchMusic(let query, _):
+            return query
+        case .searchWeb(let query):
+            return query
+        }
+    }
+
     var label: String {
         switch self {
         case .openURL(let url):
@@ -119,6 +145,38 @@ private struct ViewportSizeKey: PreferenceKey {
     }
 }
 
+private enum DetailConfirmationModal {
+    case hideScreenshot
+    case deleteFromPhotos
+
+    var title: String {
+        switch self {
+        case .hideScreenshot:
+            return "Hide screenshot?"
+        case .deleteFromPhotos:
+            return "Delete from Photos?"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .hideScreenshot:
+            return "This will remove the screenshot from Puddle Club."
+        case .deleteFromPhotos:
+            return "This will remove the screenshot from your Photos library but keep it in Puddle Club."
+        }
+    }
+
+    var confirmTitle: String {
+        switch self {
+        case .hideScreenshot:
+            return "Hide screenshot"
+        case .deleteFromPhotos:
+            return "Delete from Photos"
+        }
+    }
+}
+
 // MARK: - Detail view
 
 struct ScreenshotDetailView: View {
@@ -129,11 +187,17 @@ struct ScreenshotDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var allScreenshots: [Screenshot]
     @Environment(\.dismiss) private var dismiss
-    @State private var confirmDelete = false
-    @State private var confirmDeleteFromPhotos = false
+    @State private var activeConfirmationModal: DetailConfirmationModal?
     @State private var scrollProgress: CGFloat = 0
 
     @State private var currentLocalIdentifier: String
+
+    private var isShowingConfirmationAlert: Binding<Bool> {
+        Binding(
+            get: { activeConfirmationModal != nil },
+            set: { if !$0 { activeConfirmationModal = nil } }
+        )
+    }
 
     init(screenshot: Screenshot, siblings: [Screenshot]? = nil) {
         self.screenshot = screenshot
@@ -296,6 +360,21 @@ struct ScreenshotDetailView: View {
         }
     }
 
+    private func confirmActiveModalAction() {
+        switch activeConfirmationModal {
+        case .hideScreenshot:
+            modelContext.delete(currentScreenshot)
+            try? modelContext.save()
+            activeConfirmationModal = nil
+            dismiss()
+        case .deleteFromPhotos:
+            activeConfirmationModal = nil
+            deleteFromPhotos()
+        case nil:
+            break
+        }
+    }
+
     var body: some View {
         TabView(selection: $currentLocalIdentifier) {
             ForEach(screenshots) { shot in
@@ -327,16 +406,18 @@ struct ScreenshotDetailView: View {
                             Button {
                                 openURL(url)
                             } label: {
-                                Label(action.label, systemImage: action.icon)
+                                Text(action.title)
+                                Text(action.subtitle)
+                                Image(systemName: action.icon)
                             }
                         }
                     }
 
                     Section {
-                        Button(role: .destructive) { confirmDelete = true } label: {
+                        Button(role: .destructive) { activeConfirmationModal = .hideScreenshot } label: {
                             Label("Hide screenshot", systemImage: "eye.slash")
                         }
-                        Button(role: .destructive) { confirmDeleteFromPhotos = true } label: {
+                        Button(role: .destructive) { activeConfirmationModal = .deleteFromPhotos } label: {
                             Label("Delete from Photos", systemImage: "trash")
                         }
                     }
@@ -347,19 +428,17 @@ struct ScreenshotDetailView: View {
                 .buttonStyle(.plain)
             }
         }
-        .confirmationDialog("Delete this screenshot?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                modelContext.delete(currentScreenshot)
-                try? modelContext.save()
-                dismiss()
+        .alert(
+            activeConfirmationModal?.title ?? "",
+            isPresented: isShowingConfirmationAlert,
+            presenting: activeConfirmationModal
+        ) { modal in
+            Button(modal.confirmTitle, role: .destructive, action: confirmActiveModalAction)
+            Button("Cancel", role: .cancel) {
+                activeConfirmationModal = nil
             }
-            Button("Cancel", role: .cancel) {}
-        }
-        .confirmationDialog("Delete this screenshot from Photos?", isPresented: $confirmDeleteFromPhotos, titleVisibility: .visible) {
-            Button("Delete from Photos", role: .destructive) {
-                deleteFromPhotos()
-            }
-            Button("Cancel", role: .cancel) {}
+        } message: { modal in
+            Text(modal.message)
         }
     }
 
