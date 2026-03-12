@@ -186,8 +186,10 @@ struct ScreenshotDetailView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var allScreenshots: [Screenshot]
+    @Query(sort: \ScreenshotTag.value, order: .forward) private var allTags: [ScreenshotTag]
     @Environment(\.dismiss) private var dismiss
     @State private var activeConfirmationModal: DetailConfirmationModal?
+    @State private var isShowingTagEditor = false
     @State private var scrollProgress: CGFloat = 0
 
     @State private var currentLocalIdentifier: String
@@ -401,6 +403,14 @@ struct ScreenshotDetailView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Section {
+                        Button {
+                            isShowingTagEditor = true
+                        } label: {
+                            Label("Edit tag(s)", systemImage: "tag")
+                        }
+                    }
+
                     if let action = menuAction, let url = action.url {
                         Section {
                             Button {
@@ -428,6 +438,12 @@ struct ScreenshotDetailView: View {
                 .buttonStyle(.plain)
             }
         }
+        .sheet(isPresented: $isShowingTagEditor) {
+            TagEditorSheet(
+                screenshot: currentScreenshot,
+                availableTagValues: Array(Set(allTags.map(\.value))).sorted()
+            )
+        }
         .alert(
             activeConfirmationModal?.title ?? "",
             isPresented: isShowingConfirmationAlert,
@@ -442,6 +458,130 @@ struct ScreenshotDetailView: View {
         }
     }
 
+}
+
+private struct TagEditorSheet: View {
+    let screenshot: Screenshot
+    let availableTagValues: [String]
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @State private var newTagText = ""
+
+    private var sortedSelectedTags: [String] {
+        Array(Set(screenshot.tags.map(\.value))).sorted()
+    }
+
+    private var normalizedNewTag: String {
+        newTagText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
+    private var matchingTagSuggestions: [String] {
+        guard !normalizedNewTag.isEmpty else { return [] }
+
+        return availableTagValues
+            .filter { !sortedSelectedTags.contains($0) }
+            .filter { $0.localizedCaseInsensitiveContains(normalizedNewTag) }
+            .prefix(8)
+            .map { $0 }
+    }
+
+    private func hasTag(_ value: String) -> Bool {
+        screenshot.tags.contains { $0.value == value }
+    }
+
+    private func addTag(_ value: String) {
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalized.isEmpty, !hasTag(normalized) else { return }
+
+        let tag = ScreenshotTag(value: normalized, source: "user")
+        tag.screenshot = screenshot
+        screenshot.tags.append(tag)
+        try? modelContext.save()
+    }
+
+    private func removeTag(_ value: String) {
+        guard let tag = screenshot.tags.first(where: { $0.value == value }) else { return }
+        screenshot.tags.removeAll { $0 === tag }
+        modelContext.delete(tag)
+        try? modelContext.save()
+    }
+
+    private func addTypedTag() {
+        addTag(normalizedNewTag)
+        newTagText = ""
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("New Tag") {
+                    HStack(spacing: 12) {
+                        TextField("Add a tag", text: $newTagText)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onSubmit(addTypedTag)
+
+                        Button("Add") {
+                            addTypedTag()
+                        }
+                        .disabled(normalizedNewTag.isEmpty || hasTag(normalizedNewTag))
+                    }
+                }
+
+                if !matchingTagSuggestions.isEmpty {
+                    Section("Suggestions") {
+                        ForEach(matchingTagSuggestions, id: \.self) { tag in
+                            Button {
+                                addTag(tag)
+                                newTagText = ""
+                            } label: {
+                                HStack {
+                                    Text(tag)
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    Image(systemName: "tag.fill")
+                                        .foregroundStyle(.primary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                Section("Current Tags") {
+                    if sortedSelectedTags.isEmpty {
+                        Text("No tags yet")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(sortedSelectedTags, id: \.self) { tag in
+                            Button {
+                                removeTag(tag)
+                            } label: {
+                                HStack {
+                                    Text(tag)
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(.primary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Edit tag(s)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
 }
 
 // MARK: - Header blur overlay
