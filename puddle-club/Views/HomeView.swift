@@ -52,15 +52,12 @@ extension ContentType {
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var screenshots: [Screenshot]
-    @Query private var patternStores: [PatternStore]
 
     @Binding var searchText: String
 
     @State private var pipelineState = PipelineState()
     @State private var pipeline: ProcessingPipeline?
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.openai.rawValue
-
-    private var patternStore: PatternStore? { patternStores.first }
 
 
     var availableTypes: [ContentType] {
@@ -97,12 +94,6 @@ struct HomeView: View {
                 let colWidth = (geo.size.width - hSpacing * 3) / 2
 
                 ScrollView {
-                    if let store = patternStore, !store.weeklyInsight.isEmpty {
-                        WeeklyRecapCard(insight: store.weeklyInsight)
-                            .padding(.horizontal, hSpacing)
-                            .padding(.top, 24)
-                            .padding(.bottom, 8)
-                    }
                     LazyVGrid(
                         columns: [
                             GridItem(.fixed(colWidth), spacing: hSpacing),
@@ -130,8 +121,7 @@ struct HomeView: View {
                     .padding(.top, 16)
                 }
                 .contentMargins(.bottom, 80, for: .scrollContent)
-                .scrollDismissesKeyboard(.interactively)
-                .refreshable { await refreshPipeline() }
+                .scrollDismissesKeyboard(.immediately)
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
@@ -145,6 +135,10 @@ struct HomeView: View {
                 }
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Process") { startPipeline() }
+                        .disabled(pipelineState.isProcessing)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(destination: SettingsView()) {
                         Image(systemName: "gear")
@@ -167,14 +161,6 @@ struct HomeView: View {
         let p = ProcessingPipeline(container: container, state: pipelineState, provider: provider)
         pipeline = p
         Task { await p.run() }
-    }
-
-    private func refreshPipeline() async {
-        let container = modelContext.container
-        let provider = AIProvider(rawValue: aiProviderRaw) ?? .openai
-        let p = ProcessingPipeline(container: container, state: pipelineState, provider: provider)
-        pipeline = p
-        await p.run()
     }
 }
 
@@ -310,29 +296,6 @@ private struct StackCardView: View {
             guard let img else { return }
             DispatchQueue.main.async { self.image = img }
         }
-    }
-}
-
-
-// MARK: - Weekly Recap Card
-
-private struct WeeklyRecapCard: View {
-    let insight: String
-
-    var body: some View {
-        VStack(spacing: 10) {
-            Text("Weekly Recap")
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
-            Text(insight)
-                .font(.body)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.primary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
     }
 }
 
