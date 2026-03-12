@@ -21,6 +21,7 @@ actor PatternService {
         let aestheticSignature: [String]
         let behavioralPatterns: [BehavioralPatternResponse]
         let patternSummaries: [PatternSummaryResponse]
+        let weeklyInsight: String
 
         struct RecurringThemeResponse: Decodable {
             let theme: String
@@ -51,7 +52,7 @@ actor PatternService {
         close attention over time.
 
         Return ONLY valid JSON with these keys: \
-        recurringThemes, aestheticSignature, behavioralPatterns, patternSummaries.
+        recurringThemes, aestheticSignature, behavioralPatterns, patternSummaries, weeklyInsight.
 
         RECURRING THEMES
         Array of {theme, count, firstSeen, lastSeen, examples[]}. \
@@ -76,6 +77,15 @@ actor PatternService {
         Good: "You save coastal destinations almost exclusively — specifically places that feel \
         uncrowded and slightly melancholy." \
         Bad: "You enjoy saving travel content including beaches and destinations."
+
+        WEEKLY INSIGHT
+        A single string. 2–3 sentences (max 5 words per sentence). Target 100-168 characters total. Second person. \
+        A high-level observation about what the user has been saving recently — the dominant theme, \
+        a pattern shift, or something specific that keeps recurring. \
+        Vary the sentence structure — do NOT always start with "You" or "You saved". \
+        Sometimes lead with the pattern itself (e.g. "Dense, text-forward interfaces keep showing up…"). \
+        Tone: thoughtful, observational, like a perceptive friend noticing something about your taste. \
+        Not a summary. Not a list. One cohesive thought. Keep the writing tight and avoid filler phrases like "this screenshot shows" or "it seems that" or "it's clear that".
         """
 
     // MARK: - Public
@@ -122,7 +132,8 @@ actor PatternService {
             },
             patternSummaries: response.patternSummaries.map {
                 PatternSummary(contentType: $0.contentType, summary: $0.summary)
-            }
+            },
+            weeklyInsight: response.weeklyInsight
         )
 
         // Replace any existing store (keep only the latest)

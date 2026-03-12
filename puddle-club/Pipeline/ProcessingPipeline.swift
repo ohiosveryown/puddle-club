@@ -35,7 +35,7 @@ actor ProcessingPipeline {
 
     private static let patternThresholds = [15, 50, 150, 300]
     private static let patternMaxInterval = 300
-    private static let patternStaleDays = 30
+    private static let patternStaleDays = 7
 
     init(container: ModelContainer, state: PipelineState, provider: AIProvider = .openai) {
         self.container = container

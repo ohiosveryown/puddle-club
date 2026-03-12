@@ -52,6 +52,9 @@ extension ContentType {
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var screenshots: [Screenshot]
+    @Query private var patternStores: [PatternStore]
+
+    private var patternStore: PatternStore? { patternStores.first }
 
     @Binding var searchText: String
 
@@ -94,6 +97,16 @@ struct HomeView: View {
                 let colWidth = (geo.size.width - hSpacing * 3) / 2
 
                 ScrollView {
+                    if let insight = patternStore?.weeklyInsight, !insight.isEmpty {
+                        Text(insight)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, hSpacing)
+                            .padding(.top, 16)
+                            .padding(.bottom, 4)
+                    }
+
                     LazyVGrid(
                         columns: [
                             GridItem(.fixed(colWidth), spacing: hSpacing),
