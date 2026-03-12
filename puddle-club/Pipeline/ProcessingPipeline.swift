@@ -190,6 +190,7 @@ actor ProcessingPipeline {
                 screenshot.moodTags = result.moodTags
                 screenshot.aestheticNotes = result.aestheticNotes
                 screenshot.sourceURL = result.sourceURL
+                screenshot.musicClient = result.musicClient
                 screenshot.openAIProcessedAt = Date()
                 screenshot.processingStatus = ProcessingStatus.complete.rawValue
 

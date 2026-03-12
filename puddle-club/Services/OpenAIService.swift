@@ -11,6 +11,7 @@ struct OpenAIClassificationResult: Sendable, Decodable {
     let moodTags: [String]
     let aestheticNotes: [String]
     let sourceURL: String?
+    let musicClient: String?
 
     nonisolated init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -24,11 +25,12 @@ struct OpenAIClassificationResult: Sendable, Decodable {
         moodTags = (try? c.decodeIfPresent([String].self, forKey: .moodTags)) ?? []
         aestheticNotes = (try? c.decodeIfPresent([String].self, forKey: .aestheticNotes)) ?? []
         sourceURL = try? c.decodeIfPresent(String.self, forKey: .sourceURL)
+        musicClient = try? c.decodeIfPresent(String.self, forKey: .musicClient)
     }
 
     private enum CodingKeys: String, CodingKey {
         case title, contentType, contentTypeConfidence, entities, tags
-        case reflection, dominantColors, moodTags, aestheticNotes, sourceURL
+        case reflection, dominantColors, moodTags, aestheticNotes, sourceURL, musicClient
     }
 }
 
@@ -58,7 +60,7 @@ actor OpenAIService {
     private func intakePrompt(patternContext: String?) -> String {
         """
         Return ONLY valid JSON with keys: title, contentType, contentTypeConfidence, \
-        entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes, sourceURL.
+        entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes, sourceURL, musicClient.
 
         TITLE: A concise name for the subject. Be specific. \
         Good: "Carlsbad Flower Fields", "Kendrick Lamar - GNX", "Nike Air Max 90". \
@@ -91,6 +93,12 @@ actor OpenAIService {
         Social posts: prefer direct post URL (e.g. "https://x.com/user/status/123"). \
         If only a handle is visible: return profile URL (e.g. "https://instagram.com/username"). \
         Any other site: return domain as-is. Omit if no URL present.
+
+        MUSIC CLIENT: Only for music content. The streaming app visible in the screenshot. \
+        Must be exactly one of: spotify, apple_music, youtube_music, tidal, soundcloud, amazon_music, podcasts. \
+        Detect from UI: Spotify's dark UI with green accents, Apple Music's red/dark UI, \
+        YouTube Music's black UI with red accents, etc. \
+        Omit this key entirely if contentType is not music, or if the app cannot be determined.
 
         ---
         PATTERN CONTEXT (injected at runtime if available):

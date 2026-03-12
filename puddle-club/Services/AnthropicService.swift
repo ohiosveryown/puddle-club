@@ -9,7 +9,7 @@ actor AnthropicService {
     private func intakePrompt(patternContext: String?) -> String {
         """
         Return ONLY valid JSON with keys: title, contentType, contentTypeConfidence, \
-        entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes, sourceURL.
+        entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes, sourceURL, musicClient.
 
         TITLE: A concise name for the subject. Be specific. \
         Good: "Carlsbad Flower Fields", "Kendrick Lamar - GNX", "Nike Air Max 90". \
@@ -42,6 +42,12 @@ actor AnthropicService {
         Social posts: prefer direct post URL (e.g. "https://x.com/user/status/123"). \
         If only a handle is visible: return profile URL (e.g. "https://instagram.com/username"). \
         Any other site: return domain as-is. Omit if no URL present.
+
+        MUSIC CLIENT: Only for music content. The streaming app visible in the screenshot. \
+        Must be exactly one of: spotify, apple_music, youtube_music, tidal, soundcloud, amazon_music, podcasts. \
+        Detect from UI: Spotify's dark UI with green accents, Apple Music's red/dark UI, \
+        YouTube Music's black UI with red accents, etc. \
+        Omit this key entirely if contentType is not music, or if the app cannot be determined.
 
         ---
         PATTERN CONTEXT (injected at runtime if available):

@@ -7,7 +7,7 @@ import Photos
 enum ScreenshotAction {
     case openURL(URL)
     case openInMaps(query: String)
-    case searchMusic(query: String)
+    case searchMusic(query: String, client: String?)
     case searchWeb(query: String)
 
     var label: String {
@@ -16,8 +16,9 @@ enum ScreenshotAction {
             return url.host ?? "Open Link"
         case .openInMaps(let query):
             return "Open \"\(query)\" in Maps"
-        case .searchMusic(let query):
-            return "Search \"\(query)\" in Music"
+        case .searchMusic(let query, let client):
+            let appName = MusicClientInfo.displayName(for: client)
+            return "Search \"\(query)\" in \(appName)"
         case .searchWeb(let query):
             return "Search \"\(query)\""
         }
@@ -40,13 +41,63 @@ enum ScreenshotAction {
             var c = URLComponents(string: "maps://")!
             c.queryItems = [URLQueryItem(name: "q", value: query)]
             return c.url
-        case .searchMusic(let query):
-            var c = URLComponents(string: "https://music.apple.com/search")!
-            c.queryItems = [URLQueryItem(name: "term", value: query)]
-            return c.url
+        case .searchMusic(let query, let client):
+            return MusicClientInfo.searchURL(for: client, query: query)
         case .searchWeb(let query):
             var c = URLComponents(string: "https://www.google.com/search")!
             c.queryItems = [URLQueryItem(name: "q", value: query)]
+            return c.url
+        }
+    }
+}
+
+private enum MusicClientInfo {
+    private static let clientNames: Set<String> = [
+        "spotify", "apple music", "youtube music", "tidal",
+        "soundcloud", "amazon music", "podcasts"
+    ]
+
+    static func isClientName(_ name: String) -> Bool {
+        clientNames.contains(name.lowercased())
+    }
+
+    static func displayName(for client: String?) -> String {
+        switch client {
+        case "spotify":       return "Spotify"
+        case "apple_music":   return "Apple Music"
+        case "youtube_music": return "YouTube Music"
+        case "tidal":         return "Tidal"
+        case "soundcloud":    return "SoundCloud"
+        case "amazon_music":  return "Amazon Music"
+        case "podcasts":      return "Podcasts"
+        default:              return "Music"
+        }
+    }
+
+    static func searchURL(for client: String?, query: String) -> URL? {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        switch client {
+        case "spotify":
+            return URL(string: "spotify:search:\(encoded)")
+        case "youtube_music":
+            var c = URLComponents(string: "https://music.youtube.com/search")!
+            c.queryItems = [URLQueryItem(name: "q", value: query)]
+            return c.url
+        case "tidal":
+            return URL(string: "tidal://search/\(encoded)")
+        case "soundcloud":
+            var c = URLComponents(string: "https://soundcloud.com/search")!
+            c.queryItems = [URLQueryItem(name: "q", value: query)]
+            return c.url
+        case "amazon_music":
+            return URL(string: "amznmp3://search?q=\(encoded)")
+        case "podcasts":
+            var c = URLComponents(string: "podcasts://search")!
+            c.queryItems = [URLQueryItem(name: "term", value: query)]
+            return c.url
+        default: // apple_music + unknown
+            var c = URLComponents(string: "music://search")!
+            c.queryItems = [URLQueryItem(name: "term", value: query)]
             return c.url
         }
     }
@@ -416,11 +467,12 @@ private struct ScreenshotPageView: View {
             return .openInMaps(query: entity.name)
         }
 
-        // 4. Music entity
+        // 4. Music entity (skip if the entity name is just the client app name)
         if let entity = openAIEntities
             .filter({ musicTypes.contains(EntityType(rawValue: $0.entityType) ?? .other) })
+            .filter({ !MusicClientInfo.isClientName($0.name) })
             .max(by: { $0.confidence < $1.confidence }) {
-            return .searchMusic(query: entity.name)
+            return .searchMusic(query: entity.name, client: screenshot.musicClient)
         }
 
         // 3. Content-type fallback using highest-confidence entity as the query
@@ -435,7 +487,7 @@ private struct ScreenshotPageView: View {
             return .openInMaps(query: query)
         case .music:
             let query = topEntity?.name ?? ""
-            return query.isEmpty ? nil : .searchMusic(query: query)
+            return query.isEmpty ? nil : .searchMusic(query: query, client: screenshot.musicClient)
         case .product, .art, .design:
             let query = topEntity?.name ?? ""
             return query.isEmpty ? nil : .searchWeb(query: query)

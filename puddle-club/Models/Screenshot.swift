@@ -21,6 +21,7 @@ final class Screenshot {
     var aestheticNotes: [String]?
     var openAIProcessedAt: Date?
     var sourceURL: String?
+    var musicClient: String?
     var isNew: Bool
     @Relationship(deleteRule: .cascade) var entities: [ScreenshotEntity]
     @Relationship(deleteRule: .cascade) var tags: [ScreenshotTag]
