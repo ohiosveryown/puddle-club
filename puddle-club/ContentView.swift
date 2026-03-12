@@ -7,17 +7,26 @@
 
 import SwiftUI
 
+@Observable
+class SearchBarVisibility {
+    var isHidden = false
+}
+
 struct ContentView: View {
     @State private var searchText = ""
     @State private var isSearchFocused = false
     @State private var showAPIKeyPrompt = false
+    @State private var searchBarVisibility = SearchBarVisibility()
 
     var body: some View {
         HomeView(searchText: $searchText)
+            .environment(searchBarVisibility)
             .safeAreaInset(edge: .bottom) {
-                FloatingSearchBar(text: $searchText, isFocused: $isSearchFocused)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, isSearchFocused ? 12 : -12)
+                if !searchBarVisibility.isHidden {
+                    FloatingSearchBar(text: $searchText, isFocused: $isSearchFocused)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, isSearchFocused ? 12 : -12)
+                }
             }
             .onTapGesture {
                 isSearchFocused = false

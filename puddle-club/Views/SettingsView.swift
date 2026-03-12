@@ -12,6 +12,8 @@ struct SettingsView: View {
     @State private var isValidatingAnthropic: Bool = false
     @AppStorage("aiProvider") private var aiProvider: String = AIProvider.openai.rawValue
 
+    @Environment(SearchBarVisibility.self) private var searchBarVisibility
+
     var body: some View {
         Form {
             Section("AI Provider") {
@@ -79,6 +81,8 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .onAppear { searchBarVisibility.isHidden = true }
+        .onDisappear { searchBarVisibility.isHidden = false }
         .onAppear { loadExistingKeys() }
     }
 
