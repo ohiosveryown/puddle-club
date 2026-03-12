@@ -125,10 +125,12 @@ struct ScreenshotDetailView: View {
     let screenshot: Screenshot
     var siblings: [Screenshot]? = nil
 
+    @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Screenshot.addedToLibraryDate, order: .reverse) private var allScreenshots: [Screenshot]
     @Environment(\.dismiss) private var dismiss
     @State private var confirmDelete = false
+    @State private var confirmDeleteFromPhotos = false
     @State private var scrollProgress: CGFloat = 0
 
     @State private var currentLocalIdentifier: String
@@ -159,7 +161,10 @@ struct ScreenshotDetailView: View {
 
     private func deleteFromPhotos() {
         let result = PHAsset.fetchAssets(withLocalIdentifiers: [currentScreenshot.localIdentifier], options: nil)
-        guard let asset = result.firstObject else { return }
+        guard let asset = result.firstObject else {
+            currentScreenshot.isDeletedFromPhotos = true
+            return
+        }
         PHPhotoLibrary.shared().performChanges {
             PHAssetChangeRequest.deleteAssets([asset] as NSArray)
         } completionHandler: { success, _ in
@@ -174,6 +179,107 @@ struct ScreenshotDetailView: View {
     private func createdDateString(for shot: Screenshot) -> String {
         let date = shot.creationDate ?? shot.addedToLibraryDate
         return date.formatted(.dateTime.month(.abbreviated).day().year())
+    }
+
+    private var menuAction: ScreenshotAction? {
+        let openAIEntities = currentScreenshot.entities.filter { $0.source == "openai" }
+        let mapsTypes: Set<EntityType> = [.restaurant, .venue, .hotel, .location]
+        let musicTypes: Set<EntityType> = [.artist, .band, .album]
+
+        if ContentType(rawValue: currentScreenshot.contentType ?? "") == .travel {
+            let mapsQuery = openAIEntities
+                .filter({ mapsTypes.contains(EntityType(rawValue: $0.entityType) ?? .other) })
+                .max(by: { $0.confidence < $1.confidence })?.name
+                ?? currentScreenshot.title
+                ?? "Travel"
+            return .openInMaps(query: mapsQuery)
+        }
+
+        if let raw = currentScreenshot.sourceURL,
+           let url = URL(string: raw) {
+            let enhanced = enhancedSocialURL(url, ocrText: currentScreenshot.ocrText ?? "") ?? url
+            return .openURL(enhanced)
+        }
+
+        if let ocrText = currentScreenshot.ocrText,
+           let url = firstURL(in: ocrText) {
+            let enhanced = enhancedSocialURL(url, ocrText: ocrText) ?? url
+            return .openURL(enhanced)
+        }
+
+        if let entity = openAIEntities
+            .filter({ mapsTypes.contains(EntityType(rawValue: $0.entityType) ?? .other) })
+            .max(by: { $0.confidence < $1.confidence }) {
+            return .openInMaps(query: entity.name)
+        }
+
+        if let entity = openAIEntities
+            .filter({ musicTypes.contains(EntityType(rawValue: $0.entityType) ?? .other) })
+            .filter({ !MusicClientInfo.isClientName($0.name) })
+            .max(by: { $0.confidence < $1.confidence }) {
+            return .searchMusic(query: entity.name, client: currentScreenshot.musicClient)
+        }
+
+        let topEntity = openAIEntities.max(by: { $0.confidence < $1.confidence })
+
+        switch ContentType(rawValue: currentScreenshot.contentType ?? "") {
+        case .food, .travel, .architecture:
+            let query = topEntity?.name ?? currentScreenshot.contentType ?? ""
+            return query.isEmpty ? nil : .openInMaps(query: query)
+        case .nature:
+            guard let query = topEntity?.name, !query.isEmpty else { return nil }
+            return .openInMaps(query: query)
+        case .music:
+            let query = topEntity?.name ?? ""
+            return query.isEmpty ? nil : .searchMusic(query: query, client: currentScreenshot.musicClient)
+        case .product, .art, .design:
+            let query = topEntity?.name ?? ""
+            return query.isEmpty ? nil : .searchWeb(query: query)
+        default:
+            return nil
+        }
+    }
+
+    private func firstURL(in text: String) -> URL? {
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        return detector.firstMatch(in: text, options: [], range: range)
+            .flatMap { $0.url }
+    }
+
+    private func enhancedSocialURL(_ url: URL, ocrText: String) -> URL? {
+        let socialHosts: Set<String> = [
+            "instagram.com", "twitter.com", "x.com",
+            "tiktok.com", "threads.net", "facebook.com"
+        ]
+        guard let host = url.host,
+              socialHosts.contains(host),
+              url.path.isEmpty || url.path == "/" else {
+            return nil
+        }
+
+        if let handle = atHandle(in: ocrText) {
+            return URL(string: "https://\(host)/\(handle)")
+        }
+
+        let username = currentScreenshot.entities
+            .filter { $0.source == "openai" }
+            .sorted { $0.confidence > $1.confidence }
+            .compactMap { entity -> String? in
+                let normalized = entity.normalizedName
+                return (!normalized.contains(" ") && normalized.count <= 40) ? normalized : nil
+            }
+            .first
+
+        guard let username else { return nil }
+        return URL(string: "https://\(host)/\(username)")
+    }
+
+    private func atHandle(in text: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: #"@(\w{1,40})"#),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let range = Range(match.range(at: 1), in: text) else { return nil }
+        return String(text[range])
     }
 
     @ViewBuilder
@@ -216,11 +322,23 @@ struct ScreenshotDetailView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button(role: .destructive) { confirmDelete = true } label: {
-                        Label("Hide screenshot", systemImage: "slash.circle")
+                    if let action = menuAction, let url = action.url {
+                        Section {
+                            Button {
+                                openURL(url)
+                            } label: {
+                                Label(action.label, systemImage: action.icon)
+                            }
+                        }
                     }
-                    Button(role: .destructive, action: deleteFromPhotos) {
-                        Label("Delete from Photos", systemImage: "trash")
+
+                    Section {
+                        Button(role: .destructive) { confirmDelete = true } label: {
+                            Label("Hide screenshot", systemImage: "eye.slash")
+                        }
+                        Button(role: .destructive) { confirmDeleteFromPhotos = true } label: {
+                            Label("Delete from Photos", systemImage: "trash")
+                        }
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -234,6 +352,12 @@ struct ScreenshotDetailView: View {
                 modelContext.delete(currentScreenshot)
                 try? modelContext.save()
                 dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Delete this screenshot from Photos?", isPresented: $confirmDeleteFromPhotos, titleVisibility: .visible) {
+            Button("Delete from Photos", role: .destructive) {
+                deleteFromPhotos()
             }
             Button("Cancel", role: .cancel) {}
         }
