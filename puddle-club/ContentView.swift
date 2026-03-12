@@ -22,11 +22,11 @@ struct ContentView: View {
         HomeView(searchText: $searchText)
             .environment(searchBarVisibility)
             .safeAreaInset(edge: .bottom) {
-                if !searchBarVisibility.isHidden {
-                    FloatingSearchBar(text: $searchText, isFocused: $isSearchFocused)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, isSearchFocused ? 12 : -12)
-                }
+                FloatingSearchBar(text: $searchText, isFocused: $isSearchFocused)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, isSearchFocused ? 12 : -12)
+                    .opacity(searchBarVisibility.isHidden ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.2), value: searchBarVisibility.isHidden)
             }
             .onTapGesture {
                 isSearchFocused = false
