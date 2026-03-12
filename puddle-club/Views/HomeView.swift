@@ -227,7 +227,7 @@ private struct WeeklyRecapCard: View {
                     .frame(height: 0.5)
                     .padding(.horizontal, 1)
             }
-            .shadow(color: .black, radius: 4, x: 0, y: 6)
+            .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 6)
 
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
@@ -253,11 +253,11 @@ private struct PuddleGroupCard: View {
         VStack(spacing: 12) {
             PuddleStackView(screenshots: screenshots, colWidth: colWidth)
 
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 if hasDot {
                     Circle()
                         .fill(.red)
-                        .frame(width: 8, height: 8)
+                        .frame(width: 6, height: 6)
                 }
 
                 Text(type.displayName)
