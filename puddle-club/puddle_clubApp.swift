@@ -16,7 +16,7 @@ struct puddle_clubApp: App {
     init() {
         // BGTask registration must happen before the first scene is created
         do {
-            container = try ModelContainer(for: Screenshot.self, ScreenshotEntity.self, ScreenshotTag.self)
+            container = try ModelContainer(for: Screenshot.self, ScreenshotEntity.self, ScreenshotTag.self, PatternStore.self)
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }

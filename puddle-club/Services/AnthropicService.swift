@@ -6,25 +6,50 @@ actor AnthropicService {
     private let baseURL = URL(string: "https://api.anthropic.com/v1/messages")!
     private let apiVersion = "2023-06-01"
 
-    private let systemPrompt = """
-        Return ONLY valid JSON with keys: title, contentType, contentTypeConfidence, \
-        entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes, sourceURL. \
-        title should be a concise name for the subject (e.g. "Carlsbad Flower Fields", "Kendrick Lamar", "Nike Air Max 90"). \
-        contentType must be exactly one of: food, music, travel, design, fashion, product, sports, fitness, architecture, art, text, social, event, person, nature, woodworking, unknown. \
-        reflection should be 1–2 sentences, written directly to the user in the second person ("you"), \
-        as a personal, reflective note about why this screenshot might matter to them or how it fits into their life. \
-        Focus on mood and the user's relationship to the content, not a dry summary of what's on screen. \
-        aestheticNotes should be an array of 1–4 short phrases (e.g. "1980s film", "Organic forms", \
-        "Art book layout energy", "Museum-catalog feel") that describe the overall aesthetic and visual/typographic vibe, \
-        based on the image and any OCR text. \
-        sourceURL: return the most relevant URL visible anywhere in the image (address bar, footer, watermark, \
-        caption, etc.). For social media posts prefer the direct post URL \
-        (e.g. "https://x.com/user/status/123", "https://instagram.com/p/ABC"); if only a handle is visible \
-        return the profile URL (e.g. "https://instagram.com/username"). For any other website, return the URL \
-        or domain as-is (e.g. "https://ohiosveryown.co"). Omit or return null only if no URL is present.
+    private func intakePrompt(patternContext: String?) -> String {
         """
+        Return ONLY valid JSON with keys: title, contentType, contentTypeConfidence, \
+        entities [{name, type, confidence}], tags, reflection, dominantColors, moodTags, aestheticNotes, sourceURL.
 
-    func classifyText(ocrText: String, nlpEntities: [RawEntity]) async throws -> OpenAIClassificationResult {
+        TITLE: A concise name for the subject. Be specific. \
+        Good: "Carlsbad Flower Fields", "Kendrick Lamar - GNX", "Nike Air Max 90". \
+        Bad: "Beautiful landscape", "Music album", "Sneaker".
+
+        CONTENT TYPE: Must be exactly one of: food, music, travel, design, fashion, product, \
+        architecture, art, text, social, event, person, nature, woodworking, unknown. \
+        contentTypeConfidence: 0.0–1.0.
+
+        ENTITIES: Array of {name, type, confidence} for identifiable people, places, brands, songs, dishes, etc.
+
+        TAGS: 3–6 short descriptive keywords. Factual, not aesthetic.
+
+        REFLECTION: 1–2 sentences. Second person ("you"). \
+        Focus on mood and the user's relationship to this content — not a description of what's on screen. \
+        Vary the sentence structure — do NOT always start with "You" or "You saved". \
+        Sometimes begin with the pattern or theme itself (e.g. "Dense, text-forward interfaces keep showing up in your saves…"). \
+        The tone should feel like a thoughtful observation from a perceptive friend, not a classifier. \
+        If pattern context is provided below, reference it directly and specifically. \
+        If no pattern context, keep it observational and open.
+
+        AESTHETIC NOTES: Array of 1–2 short phrases (max 3 words per phrase) describing the overall visual, typographic, and tonal vibe. \
+        Good: "1980s film", "Organic forms", "Art book energy". \
+        Only include if genuinely distinctive — omit for generic imagery.
+
+        MOOD TAGS: Array of 2–4 single words describing the emotional register. \
+        Good: "Melancholy", "Aspirational", "Playful", "Quiet". Different from aestheticNotes — about feeling, not visual style.
+
+        SOURCE URL: Most relevant URL visible anywhere in the image (address bar, footer, watermark, caption, etc.). \
+        Social posts: prefer direct post URL (e.g. "https://x.com/user/status/123"). \
+        If only a handle is visible: return profile URL (e.g. "https://instagram.com/username"). \
+        Any other site: return domain as-is. Omit if no URL present.
+
+        ---
+        PATTERN CONTEXT (injected at runtime if available):
+        \(patternContext ?? "None available — treat this as a first impression.")
+        """
+    }
+
+    func classifyText(ocrText: String, nlpEntities: [RawEntity], patternContext: String? = nil) async throws -> OpenAIClassificationResult {
         let apiKey = try KeychainService.loadAnthropicAPIKey()
 
         let userContent = """
@@ -37,7 +62,7 @@ actor AnthropicService {
             "model": textModel,
             "max_tokens": 1024,
             "temperature": 0,
-            "system": systemPrompt,
+            "system": intakePrompt(patternContext: patternContext),
             "messages": [
                 ["role": "user", "content": userContent]
             ]
@@ -46,7 +71,7 @@ actor AnthropicService {
         return try await performRequest(body: body, apiKey: apiKey)
     }
 
-    func classifyImage(imageData: Data, ocrText: String?) async throws -> OpenAIClassificationResult {
+    func classifyImage(imageData: Data, ocrText: String?, patternContext: String? = nil) async throws -> OpenAIClassificationResult {
         let apiKey = try KeychainService.loadAnthropicAPIKey()
         let base64 = imageData.base64EncodedString()
 
@@ -69,7 +94,7 @@ actor AnthropicService {
             "model": visionModel,
             "max_tokens": 1024,
             "temperature": 0,
-            "system": systemPrompt,
+            "system": intakePrompt(patternContext: patternContext),
             "messages": [
                 ["role": "user", "content": contentItems]
             ]

@@ -28,9 +28,14 @@ actor ProcessingPipeline {
     private let photoService: PhotoLibraryService
     private let openAIService: OpenAIService
     private let anthropicService: AnthropicService
+    private let patternService: PatternService
     private let modelContext: ModelContext
     private let state: PipelineState
     private let provider: AIProvider
+
+    private static let patternThresholds = [15, 50, 150, 300]
+    private static let patternMaxInterval = 300
+    private static let patternStaleDays = 30
 
     init(container: ModelContainer, state: PipelineState, provider: AIProvider = .openai) {
         self.container = container
@@ -39,6 +44,7 @@ actor ProcessingPipeline {
         self.photoService = PhotoLibraryService()
         self.openAIService = OpenAIService()
         self.anthropicService = AnthropicService()
+        self.patternService = PatternService()
         self.modelContext = ModelContext(container)
     }
 
@@ -92,7 +98,10 @@ actor ProcessingPipeline {
 
             try await processWithAI(identifiers: unprocessedIDs)
 
-            // Step 4: Schedule background run
+            // Step 4: Run pattern analysis if threshold reached
+            try await maybeRunPatternAnalysis()
+
+            // Step 5: Schedule background run
             BackgroundTaskManager.scheduleNextRun()
             await updatePhase("Complete")
 
@@ -168,9 +177,10 @@ actor ProcessingPipeline {
 
             do {
                 let imageData = try await photoService.fetchHighResImageData(for: identifier)
+                let patternContext = loadPatternContext(for: screenshot)
                 let result = try await provider == .anthropic
-                    ? anthropicService.classifyImage(imageData: imageData, ocrText: nil)
-                    : openAIService.classifyImage(imageData: imageData, ocrText: nil)
+                    ? anthropicService.classifyImage(imageData: imageData, ocrText: nil, patternContext: patternContext)
+                    : openAIService.classifyImage(imageData: imageData, ocrText: nil, patternContext: patternContext)
 
                 // Map result → model
                 screenshot.title = generateTitle(from: result, for: screenshot)
@@ -216,6 +226,49 @@ actor ProcessingPipeline {
         }
 
         screenshot.processingStatus = ProcessingStatus.skipped.rawValue
+    }
+
+    // MARK: - Pattern context
+
+    private func loadPatternContext(for screenshot: Screenshot) -> String? {
+        guard let store = try? modelContext.fetch(FetchDescriptor<PatternStore>()).first else { return nil }
+        return store.context(for: screenshot)
+    }
+
+    private func maybeRunPatternAnalysis() async throws {
+        let completedScreenshots = try modelContext.fetch(
+            FetchDescriptor<Screenshot>(predicate: #Predicate { $0.processingStatus == "complete" })
+        )
+        let count = completedScreenshots.count
+        let existingStore = try? modelContext.fetch(FetchDescriptor<PatternStore>()).first
+
+        guard shouldRunPattern(count: count, store: existingStore) else { return }
+
+        await updatePhase("Updating patterns…")
+        try await patternService.analyze(
+            screenshots: completedScreenshots,
+            provider: provider,
+            modelContext: modelContext
+        )
+    }
+
+    private func shouldRunPattern(count: Int, store: PatternStore?) -> Bool {
+        guard let store else {
+            // First run — hit the first threshold
+            return count >= Self.patternThresholds[0]
+        }
+
+        // Time-based: re-run if store is older than 30 days
+        let daysSinceLastRun = Calendar.current.dateComponents(
+            [.day], from: store.createdAt, to: Date()
+        ).day ?? 0
+        if daysSinceLastRun >= Self.patternStaleDays { return true }
+
+        // Count-based: find the next threshold above last run count, capped at maxInterval
+        let lastCount = store.screenshotCount
+        let nextThreshold = Self.patternThresholds.first(where: { $0 > lastCount })
+            ?? (lastCount + Self.patternMaxInterval)
+        return count >= nextThreshold
     }
 
     // MARK: - Title generation
