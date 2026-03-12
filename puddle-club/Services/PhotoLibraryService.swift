@@ -99,8 +99,12 @@ actor PhotoLibraryService {
                 let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
                 if isDegraded { return }
 
-                if let error = info?[PHImageErrorKey] as? Error {
-                    once.resume(throwing: error)
+                if let error = info?[PHImageErrorKey] as? NSError {
+                    if error.domain == "com.apple.accounts" {
+                        once.resume(throwing: PhotoLibraryError.iCloudUnavailable)
+                    } else {
+                        once.resume(throwing: error)
+                    }
                 } else if let image, let data = image.jpegData(compressionQuality: compressionQuality) {
                     once.resume(returning: data)
                 } else {
@@ -113,11 +117,13 @@ actor PhotoLibraryService {
     enum PhotoLibraryError: Error, LocalizedError {
         case assetNotFound(String)
         case imageDataUnavailable
+        case iCloudUnavailable
 
         var errorDescription: String? {
             switch self {
             case .assetNotFound(let id): return "Asset not found: \(id)"
             case .imageDataUnavailable: return "Image data unavailable"
+            case .iCloudUnavailable: return "Photo is only available in iCloud and could not be downloaded"
             }
         }
     }

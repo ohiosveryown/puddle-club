@@ -29,6 +29,7 @@ final class PatternStore {
     var createdAt: Date
     var screenshotCount: Int
     var aestheticSignature: [String]
+    var weeklyInsight: String
 
     // JSON-encoded backing stores
     private var recurringThemesJSON: String
@@ -41,11 +42,13 @@ final class PatternStore {
         recurringThemes: [RecurringTheme] = [],
         aestheticSignature: [String] = [],
         behavioralPatterns: [BehavioralPattern] = [],
-        patternSummaries: [PatternSummary] = []
+        patternSummaries: [PatternSummary] = [],
+        weeklyInsight: String = ""
     ) {
         self.createdAt = createdAt
         self.screenshotCount = screenshotCount
         self.aestheticSignature = aestheticSignature
+        self.weeklyInsight = weeklyInsight
         self.recurringThemesJSON = Self.encode(recurringThemes)
         self.behavioralPatternsJSON = Self.encode(behavioralPatterns)
         self.patternSummariesJSON = Self.encode(patternSummaries)

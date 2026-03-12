@@ -29,13 +29,12 @@ actor ProcessingPipeline {
     private let openAIService: OpenAIService
     private let anthropicService: AnthropicService
     private let patternService: PatternService
-    private let modelContext: ModelContext
     private let state: PipelineState
     private let provider: AIProvider
 
     private static let patternThresholds = [15, 50, 150, 300]
     private static let patternMaxInterval = 300
-    private static let patternStaleDays = 30
+    private static let patternStaleDays = 7
 
     init(container: ModelContainer, state: PipelineState, provider: AIProvider = .openai) {
         self.container = container
@@ -45,10 +44,12 @@ actor ProcessingPipeline {
         self.openAIService = OpenAIService()
         self.anthropicService = AnthropicService()
         self.patternService = PatternService()
-        self.modelContext = ModelContext(container)
     }
 
     func run() async {
+        // Create ModelContext here — on the actor's thread, not the main thread
+        let modelContext = ModelContext(container)
+
         await MainActor.run {
             state.isProcessing = true
             state.errorMessage = nil
@@ -68,38 +69,41 @@ actor ProcessingPipeline {
 
             // Step 2: Fetch new screenshots
             await updatePhase("Checking library…")
-            let existingIDs = try fetchExistingIdentifiers()
+            let existingIDs = try fetchExistingIdentifiers(modelContext: modelContext)
             let newResults = try await photoService.fetchNewScreenshotIdentifiers(excluding: existingIDs)
 
-            guard !newResults.isEmpty else {
-                await updatePhase("No new screenshots found.")
-                return
+            if !newResults.isEmpty {
+                for result in newResults {
+                    let screenshot = Screenshot(
+                        localIdentifier: result.localIdentifier,
+                        creationDate: result.creationDate,
+                        addedToLibraryDate: result.addedToLibraryDate
+                    )
+                    modelContext.insert(screenshot)
+                }
+                try modelContext.save()
             }
-
-            for result in newResults {
-                let screenshot = Screenshot(
-                    localIdentifier: result.localIdentifier,
-                    creationDate: result.creationDate,
-                    addedToLibraryDate: result.addedToLibraryDate
-                )
-                modelContext.insert(screenshot)
-            }
-            try modelContext.save()
 
             // Step 3: AI classification (sliding window, max 3 concurrent)
             // Include pending, ocrComplete (legacy), and failed for retry
             let unprocessedIDs = try [ProcessingStatus.pending, .ocrComplete, .failed]
-                .flatMap { try fetchIdentifiers(withStatus: $0) }
+                .flatMap { try fetchIdentifiers(withStatus: $0, modelContext: modelContext) }
+
+            guard !unprocessedIDs.isEmpty else {
+                await updatePhase("No new screenshots found.")
+                return
+            }
+
             await MainActor.run {
                 state.totalCount = unprocessedIDs.count
                 state.processedCount = 0
             }
             await updatePhase("Classifying with AI…")
 
-            try await processWithAI(identifiers: unprocessedIDs)
+            try await processWithAI(identifiers: unprocessedIDs, modelContext: modelContext)
 
             // Step 4: Run pattern analysis if threshold reached
-            try await maybeRunPatternAnalysis()
+            try await maybeRunPatternAnalysis(modelContext: modelContext)
 
             // Step 5: Schedule background run
             BackgroundTaskManager.scheduleNextRun()
@@ -117,6 +121,7 @@ actor ProcessingPipeline {
     }
 
     func resetAllForReprocessing() throws {
+        let modelContext = ModelContext(container)
         let all = try modelContext.fetch(FetchDescriptor<Screenshot>())
         for screenshot in all {
             let status = ProcessingStatus(rawValue: screenshot.processingStatus) ?? .pending
@@ -129,12 +134,12 @@ actor ProcessingPipeline {
         try modelContext.save()
     }
 
-    private func fetchExistingIdentifiers() throws -> Set<String> {
+    private func fetchExistingIdentifiers(modelContext: ModelContext) throws -> Set<String> {
         let screenshots = try modelContext.fetch(FetchDescriptor<Screenshot>())
         return Set(screenshots.map { $0.localIdentifier })
     }
 
-    private func fetchIdentifiers(withStatus status: ProcessingStatus) throws -> [String] {
+    private func fetchIdentifiers(withStatus status: ProcessingStatus, modelContext: ModelContext) throws -> [String] {
         let value = status.rawValue
         let descriptor = FetchDescriptor<Screenshot>(
             predicate: #Predicate { $0.processingStatus == value }
@@ -142,13 +147,13 @@ actor ProcessingPipeline {
         return try modelContext.fetch(descriptor).map { $0.localIdentifier }
     }
 
-    private func processWithAI(identifiers: [String]) async throws {
+    private func processWithAI(identifiers: [String], modelContext: ModelContext) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             var iterator = identifiers.makeIterator()
 
             for _ in 0..<min(3, identifiers.count) {
                 if let id = iterator.next() {
-                    group.addTask { try await self.processOpenAI(for: id) }
+                    group.addTask { try await self.processOpenAI(for: id, modelContext: modelContext) }
                 }
             }
 
@@ -157,13 +162,13 @@ actor ProcessingPipeline {
                 await MainActor.run { state.processedCount += 1 }
 
                 if let id = iterator.next() {
-                    group.addTask { try await self.processOpenAI(for: id) }
+                    group.addTask { try await self.processOpenAI(for: id, modelContext: modelContext) }
                 }
             }
         }
     }
 
-    private func processOpenAI(for identifier: String) async throws {
+    private func processOpenAI(for identifier: String, modelContext: ModelContext) async throws {
         let descriptor = FetchDescriptor<Screenshot>(
             predicate: #Predicate { $0.localIdentifier == identifier }
         )
@@ -177,7 +182,7 @@ actor ProcessingPipeline {
 
             do {
                 let imageData = try await photoService.fetchHighResImageData(for: identifier)
-                let patternContext = loadPatternContext(for: screenshot)
+                let patternContext = loadPatternContext(for: screenshot, modelContext: modelContext)
                 let result = try await provider == .anthropic
                     ? anthropicService.classifyImage(imageData: imageData, ocrText: nil, patternContext: patternContext)
                     : openAIService.classifyImage(imageData: imageData, ocrText: nil, patternContext: patternContext)
@@ -213,6 +218,11 @@ actor ProcessingPipeline {
                 }
                 return
 
+            } catch PhotoLibraryService.PhotoLibraryError.iCloudUnavailable {
+                // Photo is only in iCloud and can't be downloaded — skip without retrying
+                screenshot.processingStatus = ProcessingStatus.skipped.rawValue
+                screenshot.errorMessage = "Photo not available locally"
+                return
             } catch {
                 if screenshot.processingAttempts < maxAttempts {
                     let delay = pow(2.0, Double(screenshot.processingAttempts))
@@ -230,12 +240,12 @@ actor ProcessingPipeline {
 
     // MARK: - Pattern context
 
-    private func loadPatternContext(for screenshot: Screenshot) -> String? {
+    private func loadPatternContext(for screenshot: Screenshot, modelContext: ModelContext) -> String? {
         guard let store = try? modelContext.fetch(FetchDescriptor<PatternStore>()).first else { return nil }
         return store.context(for: screenshot)
     }
 
-    private func maybeRunPatternAnalysis() async throws {
+    private func maybeRunPatternAnalysis(modelContext: ModelContext) async throws {
         let completedScreenshots = try modelContext.fetch(
             FetchDescriptor<Screenshot>(predicate: #Predicate { $0.processingStatus == "complete" })
         )
@@ -254,17 +264,14 @@ actor ProcessingPipeline {
 
     private func shouldRunPattern(count: Int, store: PatternStore?) -> Bool {
         guard let store else {
-            // First run — hit the first threshold
             return count >= Self.patternThresholds[0]
         }
 
-        // Time-based: re-run if store is older than 30 days
         let daysSinceLastRun = Calendar.current.dateComponents(
             [.day], from: store.createdAt, to: Date()
         ).day ?? 0
         if daysSinceLastRun >= Self.patternStaleDays { return true }
 
-        // Count-based: find the next threshold above last run count, capped at maxInterval
         let lastCount = store.screenshotCount
         let nextThreshold = Self.patternThresholds.first(where: { $0 > lastCount })
             ?? (lastCount + Self.patternMaxInterval)
