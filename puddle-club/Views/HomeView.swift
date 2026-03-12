@@ -61,6 +61,7 @@ struct HomeView: View {
     @State private var pipelineState = PipelineState()
     @State private var pipeline: ProcessingPipeline?
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.openai.rawValue
+    @AppStorage("dismissedWeeklyInsight") private var dismissedInsight: String = ""
 
 
     var availableTypes: [ContentType] {
@@ -97,14 +98,15 @@ struct HomeView: View {
                 let colWidth = (geo.size.width - hSpacing * 3) / 2
 
                 ScrollView {
-                    if let insight = patternStore?.weeklyInsight, !insight.isEmpty {
-                        Text(insight)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, hSpacing)
-                            .padding(.top, 16)
-                            .padding(.bottom, 4)
+                    if let insight = patternStore?.weeklyInsight,
+                       !insight.isEmpty,
+                       insight != dismissedInsight {
+                        WeeklyRecapCard(insight: insight) {
+                            dismissedInsight = insight
+                        }
+                        .padding(.horizontal, hSpacing)
+                        .padding(.top, 16)
+                        .padding(.bottom, 8)
                     }
 
                     LazyVGrid(
@@ -178,6 +180,66 @@ struct HomeView: View {
 }
 
 
+// MARK: - Weekly Recap Card
+
+private struct WeeklyRecapCard: View {
+    let insight: String
+    let onDismiss: () -> Void
+
+    @ScaledMetric(relativeTo: .body) private var fontSize: CGFloat = 15
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 8) {
+                Text("YOUR WEEKLY RECAP")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.white.opacity(0.45))
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                Text(insight)
+                    .font(.system(size: fontSize))
+                    .lineSpacing(fontSize * 0.16)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.top, 16)
+            .padding(.leading, 16)
+            .padding(.trailing, 8)
+            .padding(.bottom, 20)
+            .background(
+                LinearGradient(
+                    colors: [Color(red: 0.173, green: 0.173, blue: 0.173),
+                             Color(red: 0.122, green: 0.122, blue: 0.122)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .overlay(
+                RoundedRectangle(cornerRadius: 25)
+                    .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.5)
+            )
+            .overlay(alignment: .top) {
+                RoundedRectangle(cornerRadius: 25)
+                    .fill(Color.white.opacity(0.12))
+                    .frame(height: 0.5)
+                    .padding(.horizontal, 1)
+            }
+            .shadow(color: .black, radius: 4, x: 0, y: 6)
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.45))
+                    .padding(16)
+            }
+        }
+    }
+}
+
+
 // MARK: - Puddle Group Card
 
 
@@ -199,7 +261,7 @@ private struct PuddleGroupCard: View {
                 }
 
                 Text(type.displayName)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)

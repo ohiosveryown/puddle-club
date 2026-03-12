@@ -79,7 +79,7 @@ actor PatternService {
         Bad: "You enjoy saving travel content including beaches and destinations."
 
         WEEKLY INSIGHT
-        A single string. 2–3 sentences (max 5 words per sentence). Target 100-168 characters total. Second person. \
+        A single string. 2–3 sentences (max 5 words per sentence). Target 100-140 characters total. Second person. \
         A high-level observation about what the user has been saving recently — the dominant theme, \
         a pattern shift, or something specific that keeps recurring. \
         Vary the sentence structure — do NOT always start with "You" or "You saved". \
