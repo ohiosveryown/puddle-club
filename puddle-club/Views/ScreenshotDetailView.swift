@@ -936,8 +936,6 @@ private struct ScreenshotPageView: View {
 
                                 relatedScreenshotsSection
                             }
-
-                            detailDivider
                         }
                         .padding(.top, 28)
                     }
@@ -1038,7 +1036,7 @@ private struct ScreenshotPageView: View {
     }
 
     private var relatedScreenshotsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Not a coincidence:")
                 .font(.system(size: reflectionFontSize, weight: .semibold, design: .default))
                 .foregroundStyle(.white)
