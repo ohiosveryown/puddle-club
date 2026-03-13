@@ -444,8 +444,10 @@ struct ScreenshotDetailView: View {
                         Button(role: .destructive) { activeConfirmationModal = .hideScreenshot } label: {
                             Label("Hide screenshot", systemImage: "eye.slash")
                         }
-                        Button(role: .destructive) { activeConfirmationModal = .deleteFromPhotos } label: {
-                            Label("Delete from Photos", systemImage: "trash")
+                        if !currentScreenshot.isDeletedFromPhotos {
+                            Button(role: .destructive) { activeConfirmationModal = .deleteFromPhotos } label: {
+                                Label("Delete from Photos", systemImage: "trash")
+                            }
                         }
                     }
                 } label: {

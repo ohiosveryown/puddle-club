@@ -138,7 +138,12 @@ private struct MasonryImageCell: View {
 
     private func loadImage() {
         let result = PHAsset.fetchAssets(withLocalIdentifiers: [screenshot.localIdentifier], options: nil)
-        guard let asset = result.firstObject else { return }
+        guard let asset = result.firstObject else {
+            if let data = screenshot.imageData, let uiImage = UIImage(data: data) {
+                image = uiImage
+            }
+            return
+        }
         let options = PHImageRequestOptions()
         options.deliveryMode = .opportunistic
         options.isNetworkAccessAllowed = true
@@ -148,8 +153,11 @@ private struct MasonryImageCell: View {
             contentMode: .aspectFill,
             options: options
         ) { img, _ in
-            guard let img else { return }
-            DispatchQueue.main.async { self.image = img }
+            if let img {
+                DispatchQueue.main.async { self.image = img }
+            } else if let data = screenshot.imageData, let uiImage = UIImage(data: data) {
+                DispatchQueue.main.async { self.image = uiImage }
+            }
         }
     }
 }
