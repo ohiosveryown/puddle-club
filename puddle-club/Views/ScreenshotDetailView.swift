@@ -220,6 +220,37 @@ struct ScreenshotDetailView: View {
         screenshots.firstIndex(where: { $0.localIdentifier == currentLocalIdentifier })
     }
 
+    private func relatedScreenshots(for shot: Screenshot) -> [Screenshot] {
+        let sourceTags = Set(shot.tags.map(\.value))
+        let sourceContentType = shot.contentType?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        return screenshots
+            .filter { candidate in
+                candidate.localIdentifier != shot.localIdentifier
+            }
+            .compactMap { candidate -> (screenshot: Screenshot, score: Int)? in
+                let candidateTags = Set(candidate.tags.map(\.value))
+                let sharedTagCount = sourceTags.intersection(candidateTags).count
+                let candidateContentType = candidate.contentType?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased()
+                let hasMatchingContentType = sourceContentType == candidateContentType
+                let score = (sharedTagCount * 100) + (hasMatchingContentType ? 10 : 0)
+
+                guard score > 0 else { return nil }
+                return (candidate, score)
+            }
+            .sorted { lhs, rhs in
+                if lhs.score != rhs.score { return lhs.score > rhs.score }
+                let lhsDate = lhs.screenshot.creationDate ?? lhs.screenshot.addedToLibraryDate
+                let rhsDate = rhs.screenshot.creationDate ?? rhs.screenshot.addedToLibraryDate
+                if lhsDate != rhsDate { return lhsDate > rhsDate }
+                return lhs.screenshot.localIdentifier < rhs.screenshot.localIdentifier
+            }
+            .prefix(5)
+            .map(\.screenshot)
+    }
+
     private func markViewed(_ shot: Screenshot) {
         guard shot.isNew else { return }
         shot.isNew = false
@@ -390,7 +421,16 @@ struct ScreenshotDetailView: View {
     var body: some View {
         TabView(selection: $currentLocalIdentifier) {
             ForEach(screenshots) { shot in
-                ScreenshotPageView(screenshot: shot, scrollProgress: $scrollProgress)
+                ScreenshotPageView(
+                    screenshot: shot,
+                    relatedScreenshots: relatedScreenshots(for: shot),
+                    scrollProgress: $scrollProgress,
+                    navigationSiblings: screenshots,
+                    onTagTap: {
+                        currentLocalIdentifier = shot.localIdentifier
+                        isShowingTagEditor = true
+                    }
+                )
                     .tag(shot.localIdentifier)
             }
         }
@@ -399,7 +439,9 @@ struct ScreenshotDetailView: View {
         .onChange(of: currentLocalIdentifier) { markViewed(currentScreenshot) }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .ignoresSafeArea(edges: .top)
+        .background(Color.black.ignoresSafeArea())
         .overlay(alignment: .top) {
             HeaderBlurOverlay(progress: scrollProgress)
         }
@@ -452,6 +494,7 @@ struct ScreenshotDetailView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis")
+                        .foregroundStyle(.white)
                         .frame(width: 36, height: 36)
                 }
                 .buttonStyle(.plain)
@@ -773,12 +816,19 @@ private struct FullScreenImageView: View {
 
 private struct ScreenshotPageView: View {
     let screenshot: Screenshot
+    let relatedScreenshots: [Screenshot]
     @Binding var scrollProgress: CGFloat
+    let navigationSiblings: [Screenshot]
+    let onTagTap: () -> Void
 
     @State private var image: UIImage? = nil
     @State private var viewportSize: CGSize = .zero
     @State private var isFullScreen = false
-    @ScaledMetric(relativeTo: .footnote) private var aestheticNotesFontSize: CGFloat = 13
+    @ScaledMetric(relativeTo: .body) private var aestheticNotesFontSize: CGFloat = 15
+    @ScaledMetric(relativeTo: .title2) private var titleFontSize: CGFloat = 19
+    @ScaledMetric(relativeTo: .title3) private var reflectionFontSize: CGFloat = 16
+    @ScaledMetric(relativeTo: .title3) private var actionFontSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .body) private var metadataFontSize: CGFloat = 15
 
     // Image layout (uses viewport from GeometryReader to avoid UIScreen.main)
     private var imageMaxHeight: CGFloat {
@@ -792,79 +842,111 @@ private struct ScreenshotPageView: View {
     }
 
     private let scrollTransitionDistance: CGFloat = 80
+    private let contentHorizontalPadding: CGFloat = 20
+    private let dividerColor = Color.white.opacity(0.32)
+
+    private var puddleDisplayName: String? {
+        guard let contentType = screenshot.contentType,
+              let puddle = ContentType(rawValue: contentType),
+              puddle != .unknown else {
+            return nil
+        }
+        return puddle.displayName
+    }
+
+    private var sortedTags: [String] {
+        Array(Set(screenshot.tags.map(\.value))).sorted()
+    }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-
-                // MARK: Image
+            VStack(alignment: .leading, spacing: 0) {
                 imageSection
 
-                // MARK: Overall aesthetic (values only)
-                if let notes = screenshot.aestheticNotes, !notes.isEmpty {
-                    let topNotes = Array(notes.prefix(2))
-                    Text(topNotes.joined(separator: " · "))
-                        .font(.system(size: aestheticNotesFontSize, weight: .regular, design: .serif))
-                        .tracking(-0.25)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                }
-
-                // MARK: Content type pill
-                if let ct = ContentType(rawValue: screenshot.contentType ?? ""),
-                   ct != .unknown {
-                    Label(ct.displayName, systemImage: ct.sfSymbol)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(.secondary.opacity(0.12))
-                        .clipShape(Capsule())
-                        .padding(.horizontal, 20)
-                }
-
                 VStack(alignment: .leading, spacing: 0) {
+                    if let notes = screenshot.aestheticNotes, !notes.isEmpty {
+                        let topNotes = Array(notes.prefix(2))
+                        Text(topNotes.joined(separator: " • "))
+                            .font(.system(size: aestheticNotesFontSize, weight: .regular, design: .serif))
+                            .tracking(-0.2)
+                            .foregroundStyle(Color.white.opacity(0.5))
+                            .padding(.top, 24)
+                    }
 
-                    // MARK: Primary action
+                    Text("The Reflection")
+                        .font(.system(size: titleFontSize, weight: .semibold, design: .default))
+                        .foregroundStyle(.white)
+                        .padding(.top, screenshot.aestheticNotes?.isEmpty == false ? 16 : 20)
+
+                    if let desc = screenshot.reflection, !desc.isEmpty {
+                        Text(desc)
+                            .font(.system(size: reflectionFontSize, weight: .regular, design: .serif))
+                            .foregroundStyle(Color.white.opacity(0.8))
+                            .lineSpacing(reflectionFontSize * 0.16)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 10)
+                    }
+
                     if let action = primaryAction, let url = action.url {
                         Link(destination: url) {
-                            Label(action.label, systemImage: action.icon)
-                                .font(.subheadline.weight(.medium))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 13)
-                                .background(.tint)
-                                .foregroundStyle(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                            HStack(spacing: 4) {
+                                Spacer(minLength: 0)
+                                Text(action.title)
+                                    .font(.system(size: actionFontSize, weight: .medium, design: .default))
+                                Image(systemName: action.icon)
+                                    .font(.system(size: actionFontSize - 1, weight: .semibold))
+                                Spacer(minLength: 0)
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(Color(white: 0.22))
+                            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 24)
+                        .padding(.top, 18)
                     }
 
+                    if puddleDisplayName != nil || !sortedTags.isEmpty {
+                        VStack(spacing: 0) {
+                            detailDivider
 
-                    // MARK: Reflection
-                    if let desc = screenshot.reflection {
-                        section {
-                            Text(desc)
-                                .font(.body)
-                                .fixedSize(horizontal: false, vertical: true)
-                        } header: {
-                            sectionLabel("Reflection", icon: "sparkles")
+                            if let puddleDisplayName {
+                                metadataRow(label: "Puddle:") {
+                                    Text(puddleDisplayName)
+                                        .font(.system(size: metadataFontSize, weight: .medium, design: .default))
+                                        .foregroundStyle(.white)
+                                }
+                            }
+
+                            if let puddleDisplayName, !sortedTags.isEmpty, !puddleDisplayName.isEmpty {
+                                detailDivider
+                            }
+
+                            if !sortedTags.isEmpty {
+                                metadataRow(label: "Tags:", verticalAlignment: .top) {
+                                    TagList(
+                                        items: sortedTags,
+                                        fontSize: metadataFontSize,
+                                        onTagTap: onTagTap
+                                    )
+                                }
+                            }
+
+                            if !relatedScreenshots.isEmpty {
+                                detailDivider
+
+                                relatedScreenshotsSection
+                            }
+
+                            detailDivider
                         }
+                        .padding(.top, 28)
                     }
-
-                    // MARK: Tags
-                    if !screenshot.tags.isEmpty {
-                        section {
-                            TagCloud(items: screenshot.tags.map { $0.value })
-                        } header: {
-                            sectionLabel("Tags", icon: "tag")
-                        }
-                    }
-
                 }
-                .padding(.bottom, 32)
+                .padding(.horizontal, contentHorizontalPadding)
+                .padding(.bottom, 44)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.black)
             .background(
                 GeometryReader { geo in
                     Color.clear
@@ -882,6 +964,7 @@ private struct ScreenshotPageView: View {
                 Color.clear.preference(key: ViewportSizeKey.self, value: geo.size)
             }
         )
+        .background(Color.black)
         .onPreferenceChange(ViewportSizeKey.self) { viewportSize = $0 }
         .onPreferenceChange(ScrollOffsetKey.self) { minY in
             // minY is content top in scroll space: 0 at top, negative when scrolled down
@@ -909,20 +992,20 @@ private struct ScreenshotPageView: View {
                 Image(uiImage: image)
                     .resizable()
                     .frame(width: targetWidth, height: targetHeight)
-                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
                     .onTapGesture { isFullScreen = true }
             } else {
                 Rectangle()
                     .fill(.secondary.opacity(0.1))
                     .frame(height: min(CGFloat(320), imageMaxHeight))
                     .overlay { ProgressView() }
-                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
             }
         }
         .shadow(color: imageShadowColor.opacity(0.24), radius: 80, x: 0, y: 15)
         .shadow(color: imageShadowColor.opacity(0.09), radius: 18, x: 0, y: 4)
         .shadow(color: imageShadowColor.opacity(0.06), radius: 5, x: 0, y: 1)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.top, 84)
         .frame(maxWidth: .infinity, alignment: .center)
         .fullScreenCover(isPresented: $isFullScreen) {
@@ -930,24 +1013,50 @@ private struct ScreenshotPageView: View {
         }
     }
 
-    @ViewBuilder
-    private func section<Header: View, Content: View>(
-        @ViewBuilder content: () -> Content,
-        @ViewBuilder header: () -> Header
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header()
-            content()
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 24)
+    private var detailDivider: some View {
+        Rectangle()
+            .fill(dividerColor)
+            .frame(maxWidth: .infinity)
+            .frame(height: 1)
     }
 
-    private func sectionLabel(_ title: String, icon: String) -> some View {
-        Label(title, systemImage: icon)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
+    private func metadataRow<Content: View>(
+        label: String,
+        verticalAlignment: VerticalAlignment = .center,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: verticalAlignment, spacing: 22) {
+            Text(label)
+                .font(.system(size: metadataFontSize, weight: .medium, design: .default))
+                .foregroundStyle(Color.white.opacity(0.5))
+                .frame(width: 72, alignment: .leading)
+
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 14)
+    }
+
+    private var relatedScreenshotsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Not a coincidence:")
+                .font(.system(size: reflectionFontSize, weight: .semibold, design: .default))
+                .foregroundStyle(.white)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(relatedScreenshots) { related in
+                        NavigationLink {
+                            ScreenshotDetailView(screenshot: related, siblings: navigationSiblings)
+                        } label: {
+                            RelatedScreenshotThumbnail(screenshot: related)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 20)
     }
 
     // MARK: - Action resolution
@@ -1096,20 +1205,79 @@ private struct ScreenshotPageView: View {
 
 }
 
-// MARK: - Tag cloud
-
-private struct TagCloud: View {
+private struct TagList: View {
     let items: [String]
+    let fontSize: CGFloat
+    let onTagTap: () -> Void
 
     var body: some View {
-        FlowLayout(spacing: 8) {
+        FlowLayout(itemSpacing: 6, rowSpacing: 6) {
             ForEach(items, id: \.self) { item in
-                Text(item)
-                    .font(.caption)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(.secondary.opacity(0.12))
-                    .clipShape(Capsule())
+                Button(action: onTagTap) {
+                    Text(item)
+                        .font(.system(size: fontSize, weight: .regular, design: .default).leading(.tight))
+                        .underline()
+                        .foregroundStyle(Color.white.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+private struct RelatedScreenshotThumbnail: View {
+    let screenshot: Screenshot
+
+    @State private var image: UIImage?
+
+    private let size = CGSize(width: 56, height: 56)
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Rectangle()
+                    .fill(.white.opacity(0.08))
+                    .overlay {
+                        ProgressView()
+                            .tint(.white.opacity(0.7))
+                    }
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .onAppear(perform: loadImage)
+    }
+
+    private func loadImage() {
+        let result = PHAsset.fetchAssets(withLocalIdentifiers: [screenshot.localIdentifier], options: nil)
+
+        guard let asset = result.firstObject else {
+            if let data = screenshot.imageData, let uiImage = UIImage(data: data) {
+                image = uiImage
+            }
+            return
+        }
+
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.isNetworkAccessAllowed = true
+        options.resizeMode = .fast
+
+        PHImageManager.default().requestImage(
+            for: asset,
+            targetSize: CGSize(width: size.width * 3, height: size.height * 3),
+            contentMode: .aspectFill,
+            options: options
+        ) { result, _ in
+            if let result {
+                DispatchQueue.main.async { image = result }
+            } else if let data = screenshot.imageData, let uiImage = UIImage(data: data) {
+                DispatchQueue.main.async { image = uiImage }
             }
         }
     }
@@ -1118,7 +1286,8 @@ private struct TagCloud: View {
 // MARK: - Flow layout (iOS 16+)
 
 private struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
+    var itemSpacing: CGFloat = 8
+    var rowSpacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         place(subviews: subviews, in: proposal.width ?? 0).size
@@ -1145,13 +1314,13 @@ private struct FlowLayout: Layout {
         for subview in subviews {
             let size = subview.sizeThatFits(.unspecified)
             if x + size.width > maxWidth, x > 0 {
-                y += rowHeight + spacing
+                y += rowHeight + rowSpacing
                 x = 0
                 rowHeight = 0
             }
             frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
             rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
+            x += size.width + itemSpacing
         }
 
         return Result(frames: frames, size: CGSize(width: maxWidth, height: y + rowHeight))

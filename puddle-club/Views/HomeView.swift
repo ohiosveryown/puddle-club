@@ -186,7 +186,7 @@ private struct WeeklyRecapCard: View {
     let insight: String
     let onDismiss: () -> Void
 
-    @ScaledMetric(relativeTo: .body) private var fontSize: CGFloat = 15
+    @ScaledMetric(relativeTo: .body) private var fontSize: CGFloat = 16
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -199,7 +199,7 @@ private struct WeeklyRecapCard: View {
 
                 Text(insight)
                     .font(.system(size: fontSize))
-                    .lineSpacing(fontSize * 0.16)
+                    // .lineSpacing(fontSize * 0.1)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
