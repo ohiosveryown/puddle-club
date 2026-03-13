@@ -251,7 +251,7 @@ private struct PuddleGroupCard: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            PuddleStackView(screenshots: screenshots, colWidth: colWidth)
+            PuddleStackView(type: type, screenshots: screenshots, colWidth: colWidth)
 
             HStack(spacing: 7) {
                 if hasDot {
@@ -279,48 +279,141 @@ private struct PuddleGroupCard: View {
 // MARK: - Puddle Stack View
 
 private struct PuddleStackView: View {
+    private enum StackStyle: CaseIterable {
+        case fanLeft
+        case fanRight
+        case staggered
+        case compact
+        case scattered
+    }
+
+    private struct StackPlacement {
+        let x: CGFloat
+        let y: CGFloat
+        let rotation: Double
+        let scale: CGFloat
+        let zIndex: Double
+    }
+
+    let type: ContentType
     let screenshots: [Screenshot]
     let colWidth: CGFloat
 
     private var cardWidth: CGFloat { colWidth * 0.55 }
     private var cardHeight: CGFloat { cardWidth * (212 / 124) }
+    private var layoutUnit: CGFloat { cardWidth / 124 }
 
-    private var configs: [(transform: CGAffineTransform, scale: CGFloat, yOffset: CGFloat)] {
-        let s = cardWidth / 124
-        return [
-            (CGAffineTransform(rotationAngle: -5 * .pi / 180).translatedBy(x: -52 * s, y: 20 * s), 0.88, -5),  // bottom
-            (CGAffineTransform(rotationAngle:  9 * .pi / 180).translatedBy(x:  56 * s, y:  9 * s), 0.88, -5),  // middle
-            (CGAffineTransform(rotationAngle:  3 * .pi / 180),                                       1.00,   0),  // top
-        ]
+    private var style: StackStyle {
+        let index = stableHash(type.rawValue) % StackStyle.allCases.count
+        return StackStyle.allCases[index]
     }
 
-    private func deterministicRotation(for id: String) -> CGAffineTransform {
+    private func stableHash(_ string: String) -> Int {
         var hash: UInt64 = 5381
-        for c in id.unicodeScalars { hash = hash &* 31 &+ UInt64(c.value) }
-        let t = CGFloat(hash % 1000) / 1000.0
-        let degrees = hash.isMultiple(of: 2)
-            ? -(0.5 + t * 1.5)  // -0.5º to -2º
-            : (0.5 + t * 1.5)   // +0.5º to +2º
-        return CGAffineTransform(rotationAngle: degrees * .pi / 180)
+        for scalar in string.unicodeScalars {
+            hash = hash &* 31 &+ UInt64(scalar.value)
+        }
+        return Int(hash)
+    }
+
+    private func placements(for count: Int) -> [StackPlacement] {
+        guard count > 1 else {
+            return [StackPlacement(x: 0, y: 0, rotation: 0, scale: 1, zIndex: 3)]
+        }
+
+        switch (style, count) {
+        case (.fanLeft, 2):
+            return [
+                StackPlacement(x: -28, y: 8, rotation: -12, scale: 0.92, zIndex: 1),
+                StackPlacement(x: 18, y: -2, rotation: 5, scale: 1, zIndex: 2)
+            ]
+        case (.fanLeft, 3):
+            return [
+                StackPlacement(x: -38, y: 14, rotation: -16, scale: 0.86, zIndex: 1),
+                StackPlacement(x: 26, y: 10, rotation: 10, scale: 0.88, zIndex: 2),
+                StackPlacement(x: -3, y: -2, rotation: -2, scale: 1, zIndex: 3)
+            ]
+
+        case (.fanRight, 2):
+            return [
+                StackPlacement(x: 24, y: 8, rotation: 11, scale: 0.92, zIndex: 1),
+                StackPlacement(x: -16, y: -2, rotation: -4, scale: 1, zIndex: 2)
+            ]
+        case (.fanRight, 3):
+            return [
+                StackPlacement(x: 34, y: 14, rotation: 15, scale: 0.86, zIndex: 1),
+                StackPlacement(x: -29, y: 8, rotation: -11, scale: 0.89, zIndex: 2),
+                StackPlacement(x: 1, y: -2, rotation: 3, scale: 1, zIndex: 3)
+            ]
+
+        case (.staggered, 2):
+            return [
+                StackPlacement(x: -22, y: 10, rotation: -6, scale: 0.9, zIndex: 1),
+                StackPlacement(x: 16, y: -4, rotation: 3, scale: 1, zIndex: 2)
+            ]
+        case (.staggered, 3):
+            return [
+                StackPlacement(x: -34, y: 14, rotation: -9, scale: 0.84, zIndex: 1),
+                StackPlacement(x: 0, y: 4, rotation: -1, scale: 0.9, zIndex: 2),
+                StackPlacement(x: 30, y: -7, rotation: 7, scale: 0.98, zIndex: 3)
+            ]
+
+        case (.compact, 2):
+            return [
+                StackPlacement(x: -13, y: 7, rotation: -5, scale: 0.93, zIndex: 1),
+                StackPlacement(x: 13, y: -1, rotation: 4, scale: 1, zIndex: 2)
+            ]
+        case (.compact, 3):
+            return [
+                StackPlacement(x: -20, y: 11, rotation: -7, scale: 0.84, zIndex: 1),
+                StackPlacement(x: 20, y: 10, rotation: 8, scale: 0.84, zIndex: 2),
+                StackPlacement(x: 0, y: -4, rotation: 1, scale: 1, zIndex: 3)
+            ]
+
+        case (.scattered, 2):
+            return [
+                StackPlacement(x: -26, y: 4, rotation: -14, scale: 0.88, zIndex: 1),
+                StackPlacement(x: 24, y: 4, rotation: 12, scale: 0.9, zIndex: 2)
+            ]
+        case (.scattered, 3):
+            return [
+                StackPlacement(x: -36, y: 13, rotation: -18, scale: 0.83, zIndex: 1),
+                StackPlacement(x: 34, y: 13, rotation: 16, scale: 0.83, zIndex: 2),
+                StackPlacement(x: 0, y: -7, rotation: 0, scale: 1, zIndex: 3)
+            ]
+
+        default:
+            return [StackPlacement(x: 0, y: 0, rotation: 0, scale: 1, zIndex: 3)]
+        }
     }
 
     var body: some View {
         let cards = Array(screenshots.prefix(3))
-        let n = cards.count
-        let ordered = Array(cards.reversed()) // back → front
+        let placements = placements(for: cards.count)
 
         ZStack {
-            ForEach(Array(ordered.enumerated()), id: \.offset) { localIdx, screenshot in
-                let configIdx = (configs.count - n) + localIdx
-                let cfg = configs[configIdx]
+            ForEach(Array(cards.indices), id: \.self) { index in
+                let screenshot = cards[index]
+                let placement = placements[index]
+
                 StackCardView(screenshot: screenshot, width: cardWidth, height: cardHeight)
-                    .scaleEffect(n == 1 ? 1 : cfg.scale)
-                    .transformEffect(n == 1 ? .identity : cfg.transform)
-                    .offset(y: n == 1 ? 0 : cfg.yOffset)
+                    .scaleEffect(placement.scale)
+                    .rotationEffect(.degrees(placement.rotation))
+                    .offset(
+                        x: placement.x * layoutUnit,
+                        y: placement.y * layoutUnit
+                    )
+                    .zIndex(placement.zIndex)
             }
         }
-        .transformEffect(deterministicRotation(for: cards[0].localIdentifier))
-        .frame(width: colWidth, height: cardHeight + 20)
+        .rotationEffect(.degrees(groupRotation))
+        .frame(width: colWidth, height: cardHeight + 28)
+    }
+
+    private var groupRotation: Double {
+        let hash = stableHash(type.rawValue)
+        let base = Double(hash % 7) - 3
+        return base * 0.6
     }
 }
 
