@@ -449,55 +449,55 @@ private struct EdgeBlurVignette: View {
 
             ZStack {
                 Rectangle()
-                    .fill(.ultraThinMaterial)
+                    .fill(.ultraThickMaterial)
                     .mask {
                         RadialGradient(
                             colors: [
                                 .clear,
                                 .clear,
-                                .white.opacity(0.55),
+                                .white.opacity(0.78),
                                 .white
                             ],
                             center: .center,
-                            startRadius: min(size.width, size.height) * 0.28,
-                            endRadius: max(size.width, size.height) * 0.9
+                            startRadius: min(size.width, size.height) * 0.24,
+                            endRadius: max(size.width, size.height) * 0.98
                         )
                     }
 
                 VStack(spacing: 0) {
                     LinearGradient(
-                        colors: [.black.opacity(0.95), .black.opacity(0.5), .clear],
+                        colors: [.black.opacity(0.98), .black.opacity(0.7), .clear],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 88)
+                    .frame(height: 108)
 
                     Spacer(minLength: 0)
 
                     LinearGradient(
-                        colors: [.clear, .black.opacity(0.55), .black.opacity(0.95)],
+                        colors: [.clear, .black.opacity(0.72), .black.opacity(0.98)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 104)
+                    .frame(height: 124)
                 }
 
                 HStack(spacing: 0) {
                     LinearGradient(
-                        colors: [.black.opacity(0.92), .black.opacity(0.36), .clear],
+                        colors: [.black.opacity(0.96), .black.opacity(0.58), .clear],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
-                    .frame(width: 56)
+                    .frame(width: 72)
 
                     Spacer(minLength: 0)
 
                     LinearGradient(
-                        colors: [.clear, .black.opacity(0.36), .black.opacity(0.92)],
+                        colors: [.clear, .black.opacity(0.58), .black.opacity(0.96)],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
-                    .frame(width: 56)
+                    .frame(width: 72)
                 }
             }
         }
