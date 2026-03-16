@@ -24,7 +24,7 @@ struct ContentView: View {
             .safeAreaInset(edge: .bottom) {
                 FloatingSearchBar(text: $searchText, isFocused: $isSearchFocused)
                     .padding(.horizontal, 28)
-                    .padding(.bottom, isSearchFocused ? 12 : -12)
+                    .padding(.bottom, isSearchFocused ? 12 : -20)
                     .opacity(searchBarVisibility.isHidden ? 0 : 1)
                     .animation(.easeInOut(duration: 0.2), value: searchBarVisibility.isHidden)
             }
