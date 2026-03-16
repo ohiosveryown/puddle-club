@@ -128,11 +128,12 @@ struct HomeView: View {
                                 .padding(.horizontal, 24)
                                 .padding(.top, 56)
                         } else {
-                            HoneycombPuddleFeed(
+                            OpenCanvasPuddleScroller(
                                 groups: puddleGroups,
-                                viewportMid: viewportMid
+                                viewportMid: viewportMid,
+                                viewportSize: geo.size
                             )
-                            .padding(.horizontal, 18)
+                            .frame(height: max(geo.size.height - 220, 420))
                             .padding(.top, 8)
                             .padding(.bottom, 24)
                         }
@@ -343,43 +344,161 @@ private struct WeeklyRecapCard: View {
 
 // MARK: - Puddle Group Card
 
-private struct HoneycombPuddleFeed: View {
+private struct OpenCanvasPuddleScroller: View {
     let groups: [HomePuddleGroup]
     let viewportMid: CGPoint
+    let viewportSize: CGSize
+    @State private var hasCenteredInitialView = false
+    private let columnCount = 3
+    private let columnSpacing: CGFloat = 212
+    private let rowSpacing: CGFloat = 182
 
-    private struct FeedStyle {
-        let alignment: HorizontalAlignment
-        let xOffset: CGFloat
-        let yOffset: CGFloat
+    private var rowCount: Int {
+        max(Int(ceil(Double(groups.count) / Double(columnCount))), 2)
     }
 
-    private let styles: [FeedStyle] = [
-        FeedStyle(alignment: .leading, xOffset: 18, yOffset: 0),
-        FeedStyle(alignment: .trailing, xOffset: -30, yOffset: -40),
-        FeedStyle(alignment: .leading, xOffset: 2, yOffset: -16),
-        FeedStyle(alignment: .trailing, xOffset: -14, yOffset: -48)
-    ]
+    private var canvasSize: CGSize {
+        return CGSize(
+            width: max(viewportSize.width + 320, 760),
+            height: max(viewportSize.height + 260, (CGFloat(rowCount - 1) * rowSpacing) + 520)
+        )
+    }
 
-    private func style(for index: Int) -> FeedStyle {
-        styles[index % styles.count]
+    private func position(for index: Int) -> CGPoint {
+        let row = index / columnCount
+        let column = index % columnCount
+
+        let startX = (canvasSize.width - 424) / 2
+        let baseX = startX + (CGFloat(column) * columnSpacing)
+        let x = row.isMultiple(of: 2) ? baseX : baseX + (columnSpacing / 2)
+        let startY = (canvasSize.height / 2) - (CGFloat(rowCount - 1) * rowSpacing / 2)
+        let y = startY + (CGFloat(row) * rowSpacing)
+
+        return CGPoint(x: x, y: y)
+    }
+
+    private var contentCenter: CGPoint {
+        guard !groups.isEmpty else {
+            return CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+        }
+
+        var minX = CGFloat.greatestFiniteMagnitude
+        var maxX = -CGFloat.greatestFiniteMagnitude
+        var minY = CGFloat.greatestFiniteMagnitude
+        var maxY = -CGFloat.greatestFiniteMagnitude
+
+        for (index, group) in groups.enumerated() {
+            let point = position(for: index)
+            let halfWidth = group.tier.canvasSize.width / 2
+            let halfHeight = group.tier.footprintHeight / 2
+
+            minX = min(minX, point.x - halfWidth)
+            maxX = max(maxX, point.x + halfWidth)
+            minY = min(minY, point.y - halfHeight)
+            maxY = max(maxY, point.y + halfHeight)
+        }
+
+        return CGPoint(x: (minX + maxX) / 2, y: (minY + maxY) / 2)
     }
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
-                let destination: AnyView = group.screenshots.count == 1
-                    ? AnyView(ScreenshotDetailView(screenshot: group.screenshots[0]))
-                    : AnyView(GroupDetailView(type: group.type, screenshots: group.screenshots))
-                let style = style(for: index)
+        ScrollViewReader { proxy in
+            ScrollView([.horizontal, .vertical], showsIndicators: false) {
+                ZStack(alignment: .topLeading) {
+                    Color.clear
+                        .frame(width: 1, height: 1)
+                        .position(contentCenter)
+                        .id("canvas-center")
 
-                HoneycombPuddleCell(
-                    group: group,
-                    viewportMid: viewportMid,
-                    xOffset: style.xOffset,
-                    destination: destination
-                )
-                .frame(maxWidth: .infinity, alignment: style.alignment == .leading ? .leading : .trailing)
-                .offset(y: style.yOffset)
+                    ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                        let destination: AnyView = group.screenshots.count == 1
+                            ? AnyView(ScreenshotDetailView(screenshot: group.screenshots[0]))
+                            : AnyView(GroupDetailView(type: group.type, screenshots: group.screenshots))
+
+                        HoneycombPuddleCell(
+                            group: group,
+                            viewportMid: viewportMid,
+                            destination: destination
+                        )
+                        .position(position(for: index))
+                    }
+                }
+                .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
+                .padding(.horizontal, 140)
+                .padding(.vertical, 90)
+            }
+            .onAppear {
+                guard !hasCenteredInitialView else { return }
+                hasCenteredInitialView = true
+                DispatchQueue.main.async {
+                    proxy.scrollTo("canvas-center", anchor: .center)
+                }
+            }
+            .overlay {
+                EdgeBlurVignette()
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+private struct EdgeBlurVignette: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+
+            ZStack {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .mask {
+                        RadialGradient(
+                            colors: [
+                                .clear,
+                                .clear,
+                                .white.opacity(0.55),
+                                .white
+                            ],
+                            center: .center,
+                            startRadius: min(size.width, size.height) * 0.28,
+                            endRadius: max(size.width, size.height) * 0.9
+                        )
+                    }
+
+                VStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [.black.opacity(0.95), .black.opacity(0.5), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 88)
+
+                    Spacer(minLength: 0)
+
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.55), .black.opacity(0.95)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 104)
+                }
+
+                HStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [.black.opacity(0.92), .black.opacity(0.36), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: 56)
+
+                    Spacer(minLength: 0)
+
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.36), .black.opacity(0.92)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: 56)
+                }
             }
         }
     }
@@ -388,29 +507,28 @@ private struct HoneycombPuddleFeed: View {
 private struct HoneycombPuddleCell: View {
     let group: HomePuddleGroup
     let viewportMid: CGPoint
-    let xOffset: CGFloat
     let destination: AnyView
 
     var body: some View {
         GeometryReader { proxy in
             let frame = proxy.frame(in: .global)
-            let focusPoint = CGPoint(x: viewportMid.x, y: viewportMid.y - 210)
+            let focusPoint = CGPoint(x: viewportMid.x, y: viewportMid.y - 240)
             let distanceX = frame.midX - focusPoint.x
             let distanceY = frame.midY - focusPoint.y
             let distance = sqrt((distanceX * distanceX) + (distanceY * distanceY))
-            let normalized = min(distance / 560, 1)
-            let blurProgress = max((normalized - 0.28) / 0.72, 0)
-            let scale = 1.06 - (normalized * 0.14)
-            let opacity = 1 - (normalized * 0.18)
-            let blur = blurProgress * 1.6
-            let yLift = normalized * 10
+            let normalized = min(distance / 640, 1)
+            let blurProgress = max((normalized - 0.42) / 0.58, 0)
+            let scale = 1.04 - (normalized * 0.08)
+            let opacity = 1 - (normalized * 0.10)
+            let blur = blurProgress * 0.9
+            let yLift = normalized * 6
 
             NavigationLink(destination: destination) {
                 PuddleGroupCard(group: group)
                     .scaleEffect(scale)
                     .opacity(opacity)
                     .blur(radius: blur)
-                    .offset(x: xOffset, y: yLift)
+                    .offset(y: yLift)
             }
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
