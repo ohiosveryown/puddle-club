@@ -104,46 +104,43 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if let insight = patternStore?.weeklyInsight,
-                       !insight.isEmpty,
-                       insight != dismissedInsight {
-                        WeeklyRecapCard(insight: insight) {
-                            dismissedInsight = insight
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-                        .padding(.bottom, 18)
-                    }
+            GeometryReader { geo in
+                let viewportMid = CGPoint(
+                    x: geo.frame(in: .global).midX,
+                    y: geo.frame(in: .global).midY
+                )
 
-                    if puddleGroups.isEmpty {
-                        EmptyPuddleState(searchText: searchText)
-                            .padding(.horizontal, 24)
-                            .padding(.top, 56)
-                    } else {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHStack(alignment: .top, spacing: 26) {
-                                ForEach(puddleGroups) { group in
-                                    let destination: AnyView = group.screenshots.count == 1
-                                        ? AnyView(ScreenshotDetailView(screenshot: group.screenshots[0]))
-                                        : AnyView(GroupDetailView(type: group.type, screenshots: group.screenshots))
-
-                                    NavigationLink(destination: destination) {
-                                        PuddleGroupCard(group: group)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if let insight = patternStore?.weeklyInsight,
+                           !insight.isEmpty,
+                           insight != dismissedInsight {
+                            WeeklyRecapCard(insight: insight) {
+                                dismissedInsight = insight
                             }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                            .padding(.bottom, 18)
+                        }
+
+                        if puddleGroups.isEmpty {
+                            EmptyPuddleState(searchText: searchText)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 56)
+                        } else {
+                            HoneycombPuddleFeed(
+                                groups: puddleGroups,
+                                viewportMid: viewportMid
+                            )
                             .padding(.horizontal, 18)
                             .padding(.top, 8)
                             .padding(.bottom, 24)
                         }
                     }
                 }
+                .contentMargins(.bottom, 80, for: .scrollContent)
+                .scrollDismissesKeyboard(.immediately)
             }
-            .contentMargins(.bottom, 80, for: .scrollContent)
-            .scrollDismissesKeyboard(.immediately)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -346,6 +343,82 @@ private struct WeeklyRecapCard: View {
 
 // MARK: - Puddle Group Card
 
+private struct HoneycombPuddleFeed: View {
+    let groups: [HomePuddleGroup]
+    let viewportMid: CGPoint
+
+    private struct FeedStyle {
+        let alignment: HorizontalAlignment
+        let xOffset: CGFloat
+        let yOffset: CGFloat
+    }
+
+    private let styles: [FeedStyle] = [
+        FeedStyle(alignment: .leading, xOffset: 8, yOffset: 0),
+        FeedStyle(alignment: .trailing, xOffset: -20, yOffset: -34),
+        FeedStyle(alignment: .leading, xOffset: -10, yOffset: -10),
+        FeedStyle(alignment: .trailing, xOffset: -4, yOffset: -42)
+    ]
+
+    private func style(for index: Int) -> FeedStyle {
+        styles[index % styles.count]
+    }
+
+    var body: some View {
+        LazyVStack(alignment: .leading, spacing: 18) {
+            ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                let destination: AnyView = group.screenshots.count == 1
+                    ? AnyView(ScreenshotDetailView(screenshot: group.screenshots[0]))
+                    : AnyView(GroupDetailView(type: group.type, screenshots: group.screenshots))
+                let style = style(for: index)
+
+                HoneycombPuddleCell(
+                    group: group,
+                    viewportMid: viewportMid,
+                    xOffset: style.xOffset,
+                    destination: destination
+                )
+                .frame(maxWidth: .infinity, alignment: style.alignment == .leading ? .leading : .trailing)
+                .offset(y: style.yOffset)
+            }
+        }
+    }
+}
+
+private struct HoneycombPuddleCell: View {
+    let group: HomePuddleGroup
+    let viewportMid: CGPoint
+    let xOffset: CGFloat
+    let destination: AnyView
+
+    var body: some View {
+        GeometryReader { proxy in
+            let frame = proxy.frame(in: .global)
+            let focusPoint = CGPoint(x: viewportMid.x, y: viewportMid.y - 210)
+            let distanceX = frame.midX - focusPoint.x
+            let distanceY = frame.midY - focusPoint.y
+            let distance = sqrt((distanceX * distanceX) + (distanceY * distanceY))
+            let normalized = min(distance / 560, 1)
+            let blurProgress = max((normalized - 0.28) / 0.72, 0)
+            let scale = 1.06 - (normalized * 0.14)
+            let opacity = 1 - (normalized * 0.18)
+            let blur = blurProgress * 1.6
+            let yLift = normalized * 10
+
+            NavigationLink(destination: destination) {
+                PuddleGroupCard(group: group)
+                    .scaleEffect(scale)
+                    .opacity(opacity)
+                    .blur(radius: blur)
+                    .offset(x: xOffset, y: yLift)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(width: group.tier.canvasSize.width, height: group.tier.footprintHeight)
+    }
+}
+
 
 private struct PuddleGroupCard: View {
     let group: HomePuddleGroup
@@ -374,7 +447,7 @@ private struct PuddlePreviewView: View {
         for scalar in string.unicodeScalars {
             hash = hash &* 31 &+ UInt64(scalar.value)
         }
-        return Int(hash)
+        return Int(hash % UInt64(Int.max))
     }
 
     private func placements(for count: Int) -> [PuddlePreviewPlacement] {

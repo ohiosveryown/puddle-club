@@ -1,0 +1,71 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "1546da8977bf21951868cc0b9811609614be6e6ca2e6990b47de361904207c37"
+    }
+  ],
+  "containerPath" : "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "undefined_arch",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : true,
+      "platform" : "iphoneos",
+      "sdk" : "iphoneos26.1",
+      "sdkVariant" : "iphoneos",
+      "supportedArchitectures" : [
+        "armv4t",
+        "armv5",
+        "armv6",
+        "armv7",
+        "armv7f",
+        "armv7s",
+        "armv7k",
+        "arm64",
+        "arm64e"
+      ],
+      "targetArchitecture" : "undefined_arch"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Products",
+      "derivedDataPath" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData",
+      "indexDataStoreFolderPath" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "ONLY_ACTIVE_ARCH" : "YES",
+          "TOOLCHAINS" : "com.apple.dt.toolchain.Metal.32023 $(inherited)"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

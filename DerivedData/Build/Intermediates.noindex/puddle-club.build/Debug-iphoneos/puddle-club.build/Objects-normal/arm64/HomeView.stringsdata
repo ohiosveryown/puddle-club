@@ -7,7 +7,7 @@
         "key": "",
         "location": {
           "startingColumn": 30,
-          "startingLine": 147
+          "startingLine": 144
         }
       },
       {
@@ -15,7 +15,7 @@
         "key": "Process",
         "location": {
           "startingColumn": 28,
-          "startingLine": 160
+          "startingLine": 157
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "YOUR WEEKLY RECAP",
         "location": {
           "startingColumn": 22,
-          "startingLine": 298
+          "startingLine": 295
         }
       },
       {
@@ -31,7 +31,7 @@
         "key": "No puddles yet.",
         "location": {
           "startingColumn": 39,
-          "startingLine": 719
+          "startingLine": 792
         }
       },
       {
@@ -39,7 +39,7 @@
         "key": "No puddles match your search.",
         "location": {
           "startingColumn": 59,
-          "startingLine": 719
+          "startingLine": 792
         }
       },
       {
@@ -47,7 +47,7 @@
         "key": "Process screenshots to start forming groups.",
         "location": {
           "startingColumn": 39,
-          "startingLine": 723
+          "startingLine": 796
         }
       },
       {
@@ -55,7 +55,7 @@
         "key": "Try a different keyword or clear the search bar.",
         "location": {
           "startingColumn": 88,
-          "startingLine": 723
+          "startingLine": 796
         }
       },
       {
@@ -63,7 +63,7 @@
         "key": "Search or ask a question...",
         "location": {
           "startingColumn": 49,
-          "startingLine": 749
+          "startingLine": 822
         }
       }
     ]
