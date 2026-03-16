@@ -1,0 +1,23 @@
+{
+  "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club/Models/PatternStore.swift" : {
+    "const-values" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/PatternStore.swiftconstvalues",
+    "dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/PatternStore.d",
+    "diagnostics" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/PatternStore.dia",
+    "object" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/PatternStore.o",
+    "swift-dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/PatternStore.swiftdeps"
+  },
+  "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club/Models/Screenshot.swift" : {
+    "const-values" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Screenshot.swiftconstvalues",
+    "dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Screenshot.d",
+    "diagnostics" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Screenshot.dia",
+    "object" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Screenshot.o",
+    "swift-dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Screenshot.swiftdeps"
+  },
+  "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club/Models/ScreenshotEntity.swift" : {
+    "const-values" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/ScreenshotEntity.swiftconstvalues",
+    "dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/ScreenshotEntity.d",
+    "diagnostics" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/ScreenshotEntity.dia",
+    "object" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/ScreenshotEntity.o",
+    "swift-dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/ScreenshotEntity.swiftdeps"
+  }
+}

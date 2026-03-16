@@ -1,0 +1,72 @@
+{
+  "source": "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club/Views/HomeView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 147
+        }
+      },
+      {
+        "comment": "",
+        "key": "Process",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 160
+        }
+      },
+      {
+        "comment": "",
+        "key": "YOUR WEEKLY RECAP",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 298
+        }
+      },
+      {
+        "comment": "",
+        "key": "No puddles yet.",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 719
+        }
+      },
+      {
+        "comment": "",
+        "key": "No puddles match your search.",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 719
+        }
+      },
+      {
+        "comment": "",
+        "key": "Process screenshots to start forming groups.",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 723
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try a different keyword or clear the search bar.",
+        "location": {
+          "startingColumn": 88,
+          "startingLine": 723
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search or ask a question...",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 749
+        }
+      }
+    ]
+  },
+  "version": 1
+}

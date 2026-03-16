@@ -1,0 +1,24 @@
+{
+  "source": "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club/Views/PipelineStatusView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%lld / %lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 25
+        }
+      },
+      {
+        "comment": "",
+        "key": "Dismiss",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 39
+        }
+      }
+    ]
+  },
+  "version": 1
+}

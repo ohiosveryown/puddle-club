@@ -22,7 +22,7 @@ struct puddle_clubApp: App {
         }
         BackgroundTaskManager.registerTasks(container: container)
     }
-
+ 
     var body: some Scene {
         WindowGroup {
             ContentView()

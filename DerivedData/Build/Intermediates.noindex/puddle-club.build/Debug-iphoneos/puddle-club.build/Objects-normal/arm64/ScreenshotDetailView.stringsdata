@@ -1,0 +1,152 @@
+{
+  "source": "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club/Views/ScreenshotDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Edit tags",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 462
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change Puddle",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 469
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hide screenshot",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 487
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete from Photos",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 491
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 518
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit tags",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 641
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Tag",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 585
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggestions",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 600
+        }
+      },
+      {
+        "comment": "",
+        "key": "Current Tags",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 619
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add a tag",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 587
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 592
+        }
+      },
+      {
+        "comment": "",
+        "key": "No tags yet",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 621
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 645
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change Puddle",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 690
+        }
+      },
+      {
+        "comment": "",
+        "key": "Existing Puddles",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 671
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 694
+        }
+      },
+      {
+        "comment": "",
+        "key": "The Reflection",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 876
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not a coincidence:",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1040
+        }
+      }
+    ]
+  },
+  "version": 1
+}

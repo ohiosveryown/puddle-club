@@ -1,0 +1,23 @@
+{
+  "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club/Background/BackgroundTaskManager.swift" : {
+    "const-values" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/BackgroundTaskManager.swiftconstvalues",
+    "dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/BackgroundTaskManager.d",
+    "diagnostics" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/BackgroundTaskManager.dia",
+    "object" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/BackgroundTaskManager.o",
+    "swift-dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/BackgroundTaskManager.swiftdeps"
+  },
+  "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club/Extensions/Color+DominantColor.swift" : {
+    "const-values" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Color+DominantColor.swiftconstvalues",
+    "dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Color+DominantColor.d",
+    "diagnostics" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Color+DominantColor.dia",
+    "object" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Color+DominantColor.o",
+    "swift-dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Color+DominantColor.swiftdeps"
+  },
+  "/Users/pence/Desktop/dev/puddle-club-swift/puddle-club/Models/Enums.swift" : {
+    "const-values" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Enums.swiftconstvalues",
+    "dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Enums.d",
+    "diagnostics" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Enums.dia",
+    "object" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Enums.o",
+    "swift-dependencies" : "/Users/pence/Desktop/dev/puddle-club-swift/DerivedData/Build/Intermediates.noindex/puddle-club.build/Debug-iphoneos/puddle-club.build/Objects-normal/arm64/Enums.swiftdeps"
+  }
+}
