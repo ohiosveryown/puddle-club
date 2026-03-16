@@ -354,10 +354,10 @@ private struct HoneycombPuddleFeed: View {
     }
 
     private let styles: [FeedStyle] = [
-        FeedStyle(alignment: .leading, xOffset: 8, yOffset: 0),
-        FeedStyle(alignment: .trailing, xOffset: -20, yOffset: -34),
-        FeedStyle(alignment: .leading, xOffset: -10, yOffset: -10),
-        FeedStyle(alignment: .trailing, xOffset: -4, yOffset: -42)
+        FeedStyle(alignment: .leading, xOffset: 18, yOffset: 0),
+        FeedStyle(alignment: .trailing, xOffset: -30, yOffset: -40),
+        FeedStyle(alignment: .leading, xOffset: 2, yOffset: -16),
+        FeedStyle(alignment: .trailing, xOffset: -14, yOffset: -48)
     ]
 
     private func style(for index: Int) -> FeedStyle {
@@ -365,7 +365,7 @@ private struct HoneycombPuddleFeed: View {
     }
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 18) {
+        LazyVStack(alignment: .leading, spacing: 8) {
             ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
                 let destination: AnyView = group.screenshots.count == 1
                     ? AnyView(ScreenshotDetailView(screenshot: group.screenshots[0]))
@@ -691,6 +691,9 @@ private struct PuddleLabelView: View {
     let title: String
     let count: Int
     let showsDot: Bool
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var labelColor: Color { colorScheme == .dark ? .white : .black }
 
     var body: some View {
         HStack(spacing: 7) {
@@ -702,19 +705,19 @@ private struct PuddleLabelView: View {
 
             Text(title.uppercased())
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(labelColor)
                 .lineLimit(1)
 
             Text(count.formatted())
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(labelColor.opacity(0.55))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.black.opacity(0.72), in: Capsule())
+        .glassEffect(in: Capsule())
         .overlay(
             Capsule()
-                .strokeBorder(.white.opacity(0.12), lineWidth: 0.6)
+                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 12)
     }
