@@ -352,34 +352,42 @@ private struct OpenCanvasPuddleScroller: View {
     private let columnCount = 3
     private let columnSpacing: CGFloat = 212
     private let rowSpacing: CGFloat = 182
+    private let canvasOverscan: CGFloat = 96
+    private let contentInset: CGFloat = 52
 
     private var rowCount: Int {
         max(Int(ceil(Double(groups.count) / Double(columnCount))), 2)
     }
 
-    private var canvasSize: CGSize {
-        return CGSize(
-            width: max(viewportSize.width + 320, 760),
-            height: max(viewportSize.height + 260, (CGFloat(rowCount - 1) * rowSpacing) + 520)
-        )
+    private var maxGroupHalfWidth: CGFloat {
+        groups.map { $0.tier.canvasSize.width / 2 }.max() ?? 129
     }
 
-    private func position(for index: Int) -> CGPoint {
+    private var maxGroupHalfHeight: CGFloat {
+        groups.map { $0.tier.footprintHeight / 2 }.max() ?? 130
+    }
+
+    private func basePosition(for index: Int) -> CGPoint {
         let row = index / columnCount
         let column = index % columnCount
 
-        let startX = (canvasSize.width - 424) / 2
+        let startX = contentInset + maxGroupHalfWidth
         let baseX = startX + (CGFloat(column) * columnSpacing)
         let x = row.isMultiple(of: 2) ? baseX : baseX + (columnSpacing / 2)
-        let startY = (canvasSize.height / 2) - (CGFloat(rowCount - 1) * rowSpacing / 2)
+        let startY = contentInset + maxGroupHalfHeight
         let y = startY + (CGFloat(row) * rowSpacing)
 
         return CGPoint(x: x, y: y)
     }
 
-    private var contentCenter: CGPoint {
+    private var contentBounds: CGRect {
         guard !groups.isEmpty else {
-            return CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+            return CGRect(
+                x: 0,
+                y: 0,
+                width: viewportSize.width,
+                height: viewportSize.height
+            )
         }
 
         var minX = CGFloat.greatestFiniteMagnitude
@@ -388,7 +396,7 @@ private struct OpenCanvasPuddleScroller: View {
         var maxY = -CGFloat.greatestFiniteMagnitude
 
         for (index, group) in groups.enumerated() {
-            let point = position(for: index)
+            let point = basePosition(for: index)
             let halfWidth = group.tier.canvasSize.width / 2
             let halfHeight = group.tier.footprintHeight / 2
 
@@ -398,7 +406,39 @@ private struct OpenCanvasPuddleScroller: View {
             maxY = max(maxY, point.y + halfHeight)
         }
 
-        return CGPoint(x: (minX + maxX) / 2, y: (minY + maxY) / 2)
+        return CGRect(
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY
+        )
+    }
+
+    private var canvasSize: CGSize {
+        CGSize(
+            width: max(viewportSize.width + canvasOverscan, contentBounds.width + (contentInset * 2)),
+            height: max(viewportSize.height + canvasOverscan, contentBounds.height + (contentInset * 2))
+        )
+    }
+
+    private var contentOffset: CGPoint {
+        CGPoint(
+            x: ((canvasSize.width - contentBounds.width) / 2) - contentBounds.minX,
+            y: ((canvasSize.height - contentBounds.height) / 2) - contentBounds.minY
+        )
+    }
+
+    private func position(for index: Int) -> CGPoint {
+        let point = basePosition(for: index)
+
+        return CGPoint(
+            x: point.x + contentOffset.x,
+            y: point.y + contentOffset.y
+        )
+    }
+
+    private var contentCenter: CGPoint {
+        CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
     }
 
     var body: some View {
@@ -424,8 +464,8 @@ private struct OpenCanvasPuddleScroller: View {
                     }
                 }
                 .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
-                .padding(.horizontal, 140)
-                .padding(.vertical, 90)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 24)
             }
             .onAppear {
                 guard !hasCenteredInitialView else { return }
