@@ -484,62 +484,36 @@ private struct OpenCanvasPuddleScroller: View {
 
 private struct EdgeBlurVignette: View {
     var body: some View {
-        GeometryReader { proxy in
-            let size = proxy.size
-
-            ZStack {
-                Rectangle()
-                    .fill(.ultraThickMaterial)
-                    .mask {
-                        RadialGradient(
-                            colors: [
-                                .clear,
-                                .clear,
-                                .white.opacity(0.78),
-                                .white
-                            ],
-                            center: .center,
-                            startRadius: min(size.width, size.height) * 0.24,
-                            endRadius: max(size.width, size.height) * 0.98
+        ZStack {
+            Rectangle()
+                .fill(.ultraThickMaterial)
+                .mask {
+                    Rectangle()
+                        .fill(
+                            EllipticalGradient(
+                                stops: [
+                                    .init(color: .clear, location: 0),
+                                    .init(color: .clear, location: 0.62),
+                                    .init(color: .white.opacity(0.68), location: 0.88),
+                                    .init(color: .white, location: 1)
+                                ],
+                                center: .center
+                            )
                         )
-                    }
-
-                VStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [.black.opacity(0.98), .black.opacity(0.7), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 108)
-
-                    Spacer(minLength: 0)
-
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.72), .black.opacity(0.98)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 124)
                 }
 
-                HStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [.black.opacity(0.96), .black.opacity(0.58), .clear],
-                        startPoint: .leading,
-                        endPoint: .trailing
+            Rectangle()
+                .fill(
+                    EllipticalGradient(
+                        stops: [
+                            .init(color: .black.opacity(0), location: 0),
+                            .init(color: .black.opacity(0), location: 0.64),
+                            .init(color: .black.opacity(0.3), location: 0.84),
+                            .init(color: .black.opacity(0.88), location: 1)
+                        ],
+                        center: .center
                     )
-                    .frame(width: 72)
-
-                    Spacer(minLength: 0)
-
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.58), .black.opacity(0.96)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .frame(width: 72)
-                }
-            }
+                )
         }
     }
 }
