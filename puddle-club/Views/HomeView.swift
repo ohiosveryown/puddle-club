@@ -91,6 +91,24 @@ struct HomeView: View {
         screenshotsForType(type).contains { $0.isNew }
     }
 
+    private let debugLayoutMode = true
+
+    private var debugGroups: [[HomePuddleGroup]] {
+        guard let seed = screenshots.first else { return [] }
+        let tierCounts = [1, 5, 15, 25, 35]
+        let allTypes = ContentType.allCases.filter { $0 != .unknown }
+        return tierCounts.enumerated().map { tierIndex, count in
+            (0..<3).map { styleIndex in
+                let type = allTypes[(tierIndex * 3 + styleIndex) % allTypes.count]
+                return HomePuddleGroup(
+                    type: type,
+                    screenshots: Array(repeating: seed, count: count),
+                    hasDot: false
+                )
+            }
+        }
+    }
+
     private var puddleGroups: [HomePuddleGroup] {
         availableTypes.map { type in
             let groupScreenshots = screenshotsForType(type)
@@ -105,42 +123,58 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geo in
-                let viewportMid = CGPoint(
-                    x: geo.frame(in: .global).midX,
-                    y: geo.frame(in: .global).midY
-                )
+                VStack(alignment: .leading, spacing: 0) {
+                    if let insight = patternStore?.weeklyInsight,
+                       !insight.isEmpty,
+                       insight != dismissedInsight {
+                        WeeklyRecapCard(insight: insight) {
+                            dismissedInsight = insight
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
+                        .padding(.bottom, 18)
+                    }
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        if let insight = patternStore?.weeklyInsight,
-                           !insight.isEmpty,
-                           insight != dismissedInsight {
-                            WeeklyRecapCard(insight: insight) {
-                                dismissedInsight = insight
+                    if debugLayoutMode {
+                        let tierLabels = ["XXSmall (1)", "ExtraSmall (2-9)", "Small (10-19)", "Medium (20-29)", "Large (30+)"]
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 40) {
+                                ForEach(debugGroups.indices, id: \.self) { tierIndex in
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(tierLabels[tierIndex])
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .padding(.horizontal, 20)
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            HStack(alignment: .top, spacing: 0) {
+                                                ForEach(debugGroups[tierIndex].indices, id: \.self) { styleIndex in
+                                                    PuddlePreviewView(group: debugGroups[tierIndex][styleIndex])
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.top, 16)
-                            .padding(.bottom, 18)
+                            .padding(.top, 24)
+                            .padding(.bottom, 48)
                         }
+                    } else if puddleGroups.isEmpty {
+                        EmptyPuddleState(searchText: searchText)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 56)
 
-                        if puddleGroups.isEmpty {
-                            EmptyPuddleState(searchText: searchText)
-                                .padding(.horizontal, 24)
-                                .padding(.top, 56)
-                        } else {
-                            OpenCanvasPuddleScroller(
-                                groups: puddleGroups,
-                                viewportMid: viewportMid,
-                                viewportSize: geo.size
-                            )
-                            .frame(height: max(geo.size.height - 220, 420))
-                            .padding(.top, 8)
-                            .padding(.bottom, 24)
-                        }
+                        Spacer(minLength: 0)
+                    } else {
+                        OpenCanvasPuddleScroller(
+                            groups: puddleGroups,
+                            viewportSize: geo.size
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.top, 8)
+                        .padding(.bottom, 24)
                     }
                 }
-                .contentMargins(.bottom, 80, for: .scrollContent)
-                .scrollDismissesKeyboard(.immediately)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
@@ -188,48 +222,68 @@ struct HomeView: View {
 
 private struct HomePuddleGroup: Identifiable {
     enum PreviewTier: Equatable {
+        case xxSmall
+        case extraSmall
         case small
         case medium
         case large
 
         var canvasSize: CGSize {
             switch self {
-            case .small:
+            case .xxSmall:
+                CGSize(width: 160, height: 172)
+            case .extraSmall:
                 CGSize(width: 192, height: 206)
+            case .small:
+                CGSize(width: 210, height: 218)
             case .medium:
-                CGSize(width: 226, height: 224)
+                CGSize(width: 240, height: 230)
             case .large:
-                CGSize(width: 258, height: 238)
+                CGSize(width: 270, height: 248)
             }
         }
 
         var footprintHeight: CGFloat {
             switch self {
-            case .small:
+            case .xxSmall:
+                196
+            case .extraSmall:
                 224
+            case .small:
+                236
             case .medium:
-                244
+                250
             case .large:
-                260
+                266
             }
         }
 
         var baseBubbleDiameter: CGFloat {
             switch self {
+            case .xxSmall:
+                88
+            case .extraSmall:
+                78
             case .small:
-                72
+                74
             case .medium:
-                82
+                80
             case .large:
-                92
+                88
             }
         }
 
         var maxPreviewCount: Int {
             switch self {
+            case .xxSmall:
+                1
+            case .extraSmall:
+                2
             case .small:
                 3
-            case .medium, .large:
+            case .medium:
+                4
+            case .large:
                 5
             }
         }
@@ -243,9 +297,13 @@ private struct HomePuddleGroup: Identifiable {
 
     var tier: PreviewTier {
         switch screenshots.count {
-        case ...3:
+        case 1:
+            .xxSmall
+        case 2...9:
+            .extraSmall
+        case 10...19:
             .small
-        case 4...5:
+        case 20...29:
             .medium
         default:
             .large
@@ -265,7 +323,6 @@ private enum PuddleLayoutStyle: CaseIterable {
     case bloom
     case drift
     case orbit
-    case cove
 }
 
 private struct PuddlePreviewPlacement {
@@ -346,14 +403,15 @@ private struct WeeklyRecapCard: View {
 
 private struct OpenCanvasPuddleScroller: View {
     let groups: [HomePuddleGroup]
-    let viewportMid: CGPoint
     let viewportSize: CGSize
     @State private var hasCenteredInitialView = false
     private let columnCount = 3
     private let columnSpacing: CGFloat = 212
     private let rowSpacing: CGFloat = 182
-    private let canvasOverscan: CGFloat = 96
-    private let contentInset: CGFloat = 52
+    private let horizontalCanvasOverscan: CGFloat = 96
+    private let verticalCanvasOverscan: CGFloat = 0
+    private let horizontalContentInset: CGFloat = 52
+    private let verticalContentInset: CGFloat = 0
 
     private var rowCount: Int {
         max(Int(ceil(Double(groups.count) / Double(columnCount))), 2)
@@ -371,10 +429,10 @@ private struct OpenCanvasPuddleScroller: View {
         let row = index / columnCount
         let column = index % columnCount
 
-        let startX = contentInset + maxGroupHalfWidth
+        let startX = horizontalContentInset + maxGroupHalfWidth
         let baseX = startX + (CGFloat(column) * columnSpacing)
         let x = row.isMultiple(of: 2) ? baseX : baseX + (columnSpacing / 2)
-        let startY = contentInset + maxGroupHalfHeight
+        let startY = verticalContentInset + maxGroupHalfHeight
         let y = startY + (CGFloat(row) * rowSpacing)
 
         return CGPoint(x: x, y: y)
@@ -416,15 +474,15 @@ private struct OpenCanvasPuddleScroller: View {
 
     private var canvasSize: CGSize {
         CGSize(
-            width: max(viewportSize.width + canvasOverscan, contentBounds.width + (contentInset * 2)),
-            height: max(viewportSize.height + canvasOverscan, contentBounds.height + (contentInset * 2))
+            width: max(viewportSize.width + horizontalCanvasOverscan, contentBounds.width + (horizontalContentInset * 2)),
+            height: max(viewportSize.height + verticalCanvasOverscan, contentBounds.height + (verticalContentInset * 2))
         )
     }
 
     private var contentOffset: CGPoint {
         CGPoint(
             x: ((canvasSize.width - contentBounds.width) / 2) - contentBounds.minX,
-            y: ((canvasSize.height - contentBounds.height) / 2) - contentBounds.minY
+            y: max((canvasSize.height - contentBounds.height) * 0.5, verticalContentInset) - contentBounds.minY
         )
     }
 
@@ -442,110 +500,80 @@ private struct OpenCanvasPuddleScroller: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView([.horizontal, .vertical], showsIndicators: false) {
-                ZStack(alignment: .topLeading) {
-                    Color.clear
-                        .frame(width: 1, height: 1)
-                        .position(contentCenter)
-                        .id("canvas-center")
+        GeometryReader { viewportProxy in
+            let viewportCenter = CGPoint(
+                x: viewportProxy.size.width / 2,
+                y: viewportProxy.size.height / 2
+            )
 
-                    ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
-                        let destination: AnyView = group.screenshots.count == 1
-                            ? AnyView(ScreenshotDetailView(screenshot: group.screenshots[0]))
-                            : AnyView(GroupDetailView(type: group.type, screenshots: group.screenshots))
+            ScrollViewReader { proxy in
+                ScrollView([.horizontal, .vertical], showsIndicators: false) {
+                    ZStack(alignment: .topLeading) {
+                        Color.clear
+                            .frame(width: 1, height: 1)
+                            .position(contentCenter)
+                            .id("canvas-center")
 
-                        HoneycombPuddleCell(
-                            group: group,
-                            viewportMid: viewportMid,
-                            destination: destination
-                        )
-                        .position(position(for: index))
+                        ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                            let destination: AnyView = group.screenshots.count == 1
+                                ? AnyView(ScreenshotDetailView(screenshot: group.screenshots[0]))
+                                : AnyView(GroupDetailView(type: group.type, screenshots: group.screenshots))
+
+                            HoneycombPuddleCell(
+                                group: group,
+                                viewportCenter: viewportCenter,
+                                destination: destination
+                            )
+                            .position(position(for: index))
+                        }
+                    }
+                    .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 6)
+                }
+                .coordinateSpace(name: "openCanvasViewport")
+                .onAppear {
+                    guard !hasCenteredInitialView else { return }
+                    hasCenteredInitialView = true
+                    DispatchQueue.main.async {
+                        proxy.scrollTo("canvas-center", anchor: .center)
                     }
                 }
-                .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
-                .padding(.horizontal, 28)
-                .padding(.vertical, 24)
             }
-            .onAppear {
-                guard !hasCenteredInitialView else { return }
-                hasCenteredInitialView = true
-                DispatchQueue.main.async {
-                    proxy.scrollTo("canvas-center", anchor: .center)
-                }
-            }
-            .overlay {
-                EdgeBlurVignette()
-                    .allowsHitTesting(false)
-            }
-        }
-    }
-}
-
-private struct EdgeBlurVignette: View {
-    var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(.ultraThickMaterial)
-                .mask {
-                    Rectangle()
-                        .fill(
-                            EllipticalGradient(
-                                stops: [
-                                    .init(color: .clear, location: 0),
-                                    .init(color: .clear, location: 0.62),
-                                    .init(color: .white.opacity(0.68), location: 0.88),
-                                    .init(color: .white, location: 1)
-                                ],
-                                center: .center
-                            )
-                        )
-                }
-
-            Rectangle()
-                .fill(
-                    EllipticalGradient(
-                        stops: [
-                            .init(color: .black.opacity(0), location: 0),
-                            .init(color: .black.opacity(0), location: 0.64),
-                            .init(color: .black.opacity(0.3), location: 0.84),
-                            .init(color: .black.opacity(0.88), location: 1)
-                        ],
-                        center: .center
-                    )
-                )
         }
     }
 }
 
 private struct HoneycombPuddleCell: View {
     let group: HomePuddleGroup
-    let viewportMid: CGPoint
+    let viewportCenter: CGPoint
     let destination: AnyView
+    private let focusYOffset: CGFloat = 92
 
     var body: some View {
         GeometryReader { proxy in
-            let frame = proxy.frame(in: .global)
-            let focusPoint = CGPoint(x: viewportMid.x, y: viewportMid.y - 240)
+            let frame = proxy.frame(in: .named("openCanvasViewport"))
+            let focusPoint = CGPoint(x: viewportCenter.x, y: viewportCenter.y - focusYOffset)
             let distanceX = frame.midX - focusPoint.x
             let distanceY = frame.midY - focusPoint.y
             let distance = sqrt((distanceX * distanceX) + (distanceY * distanceY))
-            let normalized = min(distance / 640, 1)
-            let blurProgress = max((normalized - 0.42) / 0.58, 0)
-            let scale = 1.04 - (normalized * 0.08)
-            let opacity = 1 - (normalized * 0.10)
-            let blur = blurProgress * 0.9
-            let yLift = normalized * 6
+            let normalized = min(distance / 300, 1)
+            let focus = 1 - normalized
+            let scale = 0.7 + (focus * 0.3)
+            let opacity = 0.1 + (focus * 0.9)
+            let blur = normalized * 2.5
+            let saturation = 0.75 + (focus * 0.25)
 
             NavigationLink(destination: destination) {
                 PuddleGroupCard(group: group)
                     .scaleEffect(scale)
                     .opacity(opacity)
                     .blur(radius: blur)
-                    .offset(y: yLift)
+                    .saturation(saturation)
             }
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeOut(duration: 0.18), value: scale)
         }
         .frame(width: group.tier.canvasSize.width, height: group.tier.footprintHeight)
     }
@@ -582,116 +610,116 @@ private struct PuddlePreviewView: View {
         return Int(hash % UInt64(Int.max))
     }
 
-    private func placements(for count: Int) -> [PuddlePreviewPlacement] {
-        switch (style, count) {
-        case (_, 1):
+    private func placements() -> [PuddlePreviewPlacement] {
+        switch (style, group.tier) {
+
+        // MARK: XXSmall — 1 bubble
+        // Single large circle; label position varies by style
+        case (.bloom, .xxSmall):
+            return [PuddlePreviewPlacement(x: 0.46, y: 0.46, size: 1.22, zIndex: 1)]
+        case (.drift, .xxSmall):
+            return [PuddlePreviewPlacement(x: 0.54, y: 0.48, size: 1.12, zIndex: 1)]
+        case (.orbit, .xxSmall):
+            return [PuddlePreviewPlacement(x: 0.46, y: 0.54, size: 1, zIndex: 1)]
+
+        // MARK: ExtraSmall — 2 bubbles
+        // bloom: large upper-left + small lower-right (dramatic contrast)
+        case (.bloom, .extraSmall):
             return [
-                PuddlePreviewPlacement(x: 0.50, y: 0.48, size: 1.34, zIndex: 1)
+                PuddlePreviewPlacement(x: 0.36, y: 0.40, size: 1.16, zIndex: 2),
+                PuddlePreviewPlacement(x: 0.76, y: 0.74, size: 0.52, zIndex: 1)
             ]
-        case (.bloom, 2):
+        // drift: label top-left; large center-right + medium lower-left
+        case (.drift, .extraSmall):
             return [
-                PuddlePreviewPlacement(x: 0.36, y: 0.56, size: 1.02, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.67, y: 0.34, size: 0.84, zIndex: 2)
+                PuddlePreviewPlacement(x: 0.64, y: 0.48, size: 1.06, zIndex: 1),
+                PuddlePreviewPlacement(x: 0.28, y: 0.68, size: 0.72, zIndex: 2)
             ]
-        case (.bloom, 3):
+        // orbit: two circles side-by-side, moderate contrast
+        case (.orbit, .extraSmall):
             return [
-                PuddlePreviewPlacement(x: 0.34, y: 0.41, size: 1.08, zIndex: 3),
-                PuddlePreviewPlacement(x: 0.68, y: 0.31, size: 0.78, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.60, y: 0.74, size: 0.74, zIndex: 2)
+                PuddlePreviewPlacement(x: 0.36, y: 0.58, size: 1.02, zIndex: 1),
+                PuddlePreviewPlacement(x: 0.68, y: 0.38, size: 0.80, zIndex: 2)
             ]
-        case (.bloom, 4):
+
+        // MARK: Small — 3 bubbles
+        // bloom: two large circles side-by-side at top + one small below
+        case (.bloom, .small):
             return [
-                PuddlePreviewPlacement(x: 0.31, y: 0.45, size: 1.04, zIndex: 4),
-                PuddlePreviewPlacement(x: 0.62, y: 0.24, size: 0.74, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.70, y: 0.60, size: 0.72, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.49, y: 0.80, size: 0.62, zIndex: 3)
+                PuddlePreviewPlacement(x: 0.28, y: 0.36, size: 1.04, zIndex: 2),
+                PuddlePreviewPlacement(x: 0.62, y: 0.30, size: 0.94, zIndex: 3),
+                PuddlePreviewPlacement(x: 0.64, y: 0.74, size: 0.52, zIndex: 1)
             ]
-        case (.bloom, 5):
+        // drift: large left + smaller right + small lower-right
+        case (.drift, .small):
             return [
-                PuddlePreviewPlacement(x: 0.31, y: 0.46, size: group.tier == .large ? 1.12 : 1.02, zIndex: 5),
-                PuddlePreviewPlacement(x: 0.61, y: 0.23, size: 0.78, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.77, y: 0.54, size: 0.72, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.54, y: 0.78, size: 0.66, zIndex: 3),
-                PuddlePreviewPlacement(x: 0.18, y: 0.72, size: 0.56, zIndex: 4)
+                PuddlePreviewPlacement(x: 0.28, y: 0.46, size: 1.10, zIndex: 3),
+                PuddlePreviewPlacement(x: 0.68, y: 0.34, size: 0.70, zIndex: 2),
+                PuddlePreviewPlacement(x: 0.74, y: 0.74, size: 0.52, zIndex: 1)
             ]
-        case (.drift, 2):
+        // orbit: large lower-center + medium upper-right + small upper-left
+        case (.orbit, .small):
             return [
-                PuddlePreviewPlacement(x: 0.43, y: 0.36, size: 0.90, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.64, y: 0.65, size: 1.05, zIndex: 1)
+                PuddlePreviewPlacement(x: 0.44, y: 0.66, size: 1.10, zIndex: 3),
+                PuddlePreviewPlacement(x: 0.72, y: 0.34, size: 0.74, zIndex: 2),
+                PuddlePreviewPlacement(x: 0.22, y: 0.32, size: 0.56, zIndex: 1)
             ]
-        case (.drift, 3):
+
+        // MARK: Medium — 4 bubbles
+        // bloom: one dominant + medium upper-right + two small lower
+        case (.bloom, .medium):
             return [
-                PuddlePreviewPlacement(x: 0.34, y: 0.28, size: 0.76, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.63, y: 0.44, size: 1.04, zIndex: 3),
-                PuddlePreviewPlacement(x: 0.43, y: 0.76, size: 0.72, zIndex: 2)
+                PuddlePreviewPlacement(x: 0.34, y: 0.36, size: 1.24, zIndex: 4),
+                PuddlePreviewPlacement(x: 0.72, y: 0.26, size: 0.64, zIndex: 2),
+                PuddlePreviewPlacement(x: 0.74, y: 0.64, size: 0.52, zIndex: 1),
+                PuddlePreviewPlacement(x: 0.46, y: 0.80, size: 0.46, zIndex: 3)
             ]
-        case (.drift, 4):
+        // drift: large center-right + medium lower-left + two small
+        case (.drift, .medium):
             return [
-                PuddlePreviewPlacement(x: 0.29, y: 0.30, size: 0.72, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.58, y: 0.30, size: 0.78, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.69, y: 0.63, size: 1.00, zIndex: 4),
-                PuddlePreviewPlacement(x: 0.34, y: 0.74, size: 0.66, zIndex: 3)
+                PuddlePreviewPlacement(x: 0.62, y: 0.42, size: 1.16, zIndex: 4),
+                PuddlePreviewPlacement(x: 0.80, y: 0.22, size: 0.52, zIndex: 1),
+                PuddlePreviewPlacement(x: 0.30, y: 0.56, size: 0.82, zIndex: 3),
+                PuddlePreviewPlacement(x: 0.56, y: 0.80, size: 0.50, zIndex: 2)
             ]
-        case (.drift, 5):
+        // orbit: large lower-right + medium upper-left + two small scattered
+        case (.orbit, .medium):
             return [
-                PuddlePreviewPlacement(x: 0.28, y: 0.28, size: 0.70, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.54, y: 0.24, size: 0.78, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.76, y: 0.46, size: 0.70, zIndex: 3),
-                PuddlePreviewPlacement(x: 0.58, y: 0.72, size: group.tier == .large ? 1.02 : 0.92, zIndex: 5),
-                PuddlePreviewPlacement(x: 0.24, y: 0.69, size: 0.68, zIndex: 4)
+                PuddlePreviewPlacement(x: 0.60, y: 0.64, size: 1.18, zIndex: 4),
+                PuddlePreviewPlacement(x: 0.72, y: 0.30, size: 0.70, zIndex: 2),
+                PuddlePreviewPlacement(x: 0.22, y: 0.32, size: 0.56, zIndex: 1),
+                PuddlePreviewPlacement(x: 0.78, y: 0.62, size: 0.44, zIndex: 3)
             ]
-        case (.orbit, 2):
+
+        // MARK: Large — 5 bubbles
+        // bloom: large left + 4 varied right-and-below
+        case (.bloom, .large):
             return [
-                PuddlePreviewPlacement(x: 0.34, y: 0.44, size: 1.00, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.69, y: 0.52, size: 0.84, zIndex: 1)
+                PuddlePreviewPlacement(x: 0.28, y: 0.42, size: 1.16, zIndex: 5),
+                PuddlePreviewPlacement(x: 0.64, y: 0.22, size: 0.78, zIndex: 2),
+                PuddlePreviewPlacement(x: 0.80, y: 0.54, size: 0.66, zIndex: 1),
+                PuddlePreviewPlacement(x: 0.60, y: 0.76, size: 0.58, zIndex: 3),
+                PuddlePreviewPlacement(x: 0.18, y: 0.74, size: 0.52, zIndex: 4)
             ]
-        case (.orbit, 3):
+        // drift: scattered diagonal, dominant lower-center
+        case (.drift, .large):
             return [
-                PuddlePreviewPlacement(x: 0.50, y: 0.28, size: 0.74, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.30, y: 0.63, size: 0.86, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.68, y: 0.59, size: 1.02, zIndex: 3)
+                PuddlePreviewPlacement(x: 0.22, y: 0.26, size: 0.64, zIndex: 1),
+                PuddlePreviewPlacement(x: 0.52, y: 0.20, size: 0.74, zIndex: 2),
+                PuddlePreviewPlacement(x: 0.78, y: 0.40, size: 0.66, zIndex: 3),
+                PuddlePreviewPlacement(x: 0.60, y: 0.72, size: 1.08, zIndex: 5),
+                PuddlePreviewPlacement(x: 0.20, y: 0.68, size: 0.60, zIndex: 4)
             ]
-        case (.orbit, 4):
+        // orbit: dominant center + 4 orbiting at varying sizes
+        case (.orbit, .large):
             return [
-                PuddlePreviewPlacement(x: 0.50, y: 0.24, size: 0.68, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.74, y: 0.47, size: 0.72, zIndex: 3),
-                PuddlePreviewPlacement(x: 0.54, y: 0.74, size: 1.00, zIndex: 4),
-                PuddlePreviewPlacement(x: 0.26, y: 0.55, size: 0.76, zIndex: 1)
+                PuddlePreviewPlacement(x: 0.42, y: 0.44, size: 1.12, zIndex: 5),
+                PuddlePreviewPlacement(x: 0.76, y: 0.26, size: 0.66, zIndex: 2),
+                PuddlePreviewPlacement(x: 0.80, y: 0.66, size: 0.58, zIndex: 3),
+                PuddlePreviewPlacement(x: 0.46, y: 0.80, size: 0.54, zIndex: 4),
+                PuddlePreviewPlacement(x: 0.16, y: 0.60, size: 0.62, zIndex: 1)
             ]
-        case (.orbit, 5):
-            return [
-                PuddlePreviewPlacement(x: 0.50, y: 0.20, size: 0.62, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.77, y: 0.40, size: 0.72, zIndex: 3),
-                PuddlePreviewPlacement(x: 0.66, y: 0.74, size: 0.70, zIndex: 4),
-                PuddlePreviewPlacement(x: 0.28, y: 0.68, size: 0.72, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.39, y: 0.42, size: group.tier == .large ? 1.08 : 0.96, zIndex: 5)
-            ]
-        case (.cove, 2):
-            return [
-                PuddlePreviewPlacement(x: 0.40, y: 0.64, size: 1.04, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.67, y: 0.34, size: 0.82, zIndex: 2)
-            ]
-        case (.cove, 3):
-            return [
-                PuddlePreviewPlacement(x: 0.28, y: 0.52, size: 0.70, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.56, y: 0.61, size: 1.04, zIndex: 3),
-                PuddlePreviewPlacement(x: 0.69, y: 0.28, size: 0.72, zIndex: 2)
-            ]
-        case (.cove, 4):
-            return [
-                PuddlePreviewPlacement(x: 0.25, y: 0.58, size: 0.70, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.50, y: 0.70, size: 0.94, zIndex: 4),
-                PuddlePreviewPlacement(x: 0.69, y: 0.48, size: 0.80, zIndex: 3),
-                PuddlePreviewPlacement(x: 0.56, y: 0.22, size: 0.66, zIndex: 2)
-            ]
-        case (.cove, 5):
-            return [
-                PuddlePreviewPlacement(x: 0.19, y: 0.62, size: 0.60, zIndex: 1),
-                PuddlePreviewPlacement(x: 0.40, y: 0.72, size: 0.70, zIndex: 2),
-                PuddlePreviewPlacement(x: 0.66, y: 0.66, size: group.tier == .large ? 1.02 : 0.92, zIndex: 5),
-                PuddlePreviewPlacement(x: 0.77, y: 0.38, size: 0.72, zIndex: 4),
-                PuddlePreviewPlacement(x: 0.49, y: 0.22, size: 0.64, zIndex: 3)
-            ]
+
         default:
             return [PuddlePreviewPlacement(x: 0.50, y: 0.48, size: 1.0, zIndex: 1)]
         }
@@ -769,14 +797,49 @@ private struct PuddlePreviewView: View {
     }
 
     private var labelPlacement: PuddleLabelPlacement {
-        switch style {
-        case .bloom:
-            return PuddleLabelPlacement(alignment: .topLeading, xOffset: 14, yOffset: 20)
-        case .drift:
+        switch (style, group.tier) {
+
+        // MARK: XXSmall
+        case (.bloom, .xxSmall):
+            return PuddleLabelPlacement(alignment: .bottomTrailing, xOffset: 0, yOffset: -50)
+        case (.drift, .xxSmall):
+            return PuddleLabelPlacement(alignment: .bottomLeading, xOffset: 60, yOffset: -20)
+        case (.orbit, .xxSmall):
+            return PuddleLabelPlacement(alignment: .topLeading, xOffset: 0, yOffset: 32)
+
+        // MARK: ExtraSmall
+        case (.bloom, .extraSmall):
+            return PuddleLabelPlacement(alignment: .bottomTrailing, xOffset: -10, yOffset: -18)
+        case (.drift, .extraSmall):
+            return PuddleLabelPlacement(alignment: .topLeading, xOffset: 12, yOffset: 16)
+        case (.orbit, .extraSmall):
+            return PuddleLabelPlacement(alignment: .bottomTrailing, xOffset: -10, yOffset: -18)
+
+        // MARK: Small
+        case (.bloom, .small):
+            return PuddleLabelPlacement(alignment: .bottomTrailing, xOffset: -10, yOffset: -18)
+        case (.drift, .small):
             return PuddleLabelPlacement(alignment: .bottomLeading, xOffset: 12, yOffset: -12)
-        case .orbit:
-            return PuddleLabelPlacement(alignment: .trailing, xOffset: 8, yOffset: 8)
-        case .cove:
+        case (.orbit, .small):
+            return PuddleLabelPlacement(alignment: .bottomTrailing, xOffset: -10, yOffset: -18)
+
+        // MARK: Medium
+        case (.bloom, .medium):
+            return PuddleLabelPlacement(alignment: .topLeading, xOffset: 12, yOffset: 16)
+        case (.drift, .medium):
+            return PuddleLabelPlacement(alignment: .bottomLeading, xOffset: 12, yOffset: -12)
+        case (.orbit, .medium):
+            return PuddleLabelPlacement(alignment: .bottomLeading, xOffset: 12, yOffset: -12)
+
+        // MARK: Large
+        case (.bloom, .large):
+            return PuddleLabelPlacement(alignment: .topLeading, xOffset: 12, yOffset: 16)
+        case (.drift, .large):
+            return PuddleLabelPlacement(alignment: .bottomTrailing, xOffset: -10, yOffset: -18)
+        case (.orbit, .large):
+            return PuddleLabelPlacement(alignment: .bottomTrailing, xOffset: -10, yOffset: -18)
+
+        default:
             return PuddleLabelPlacement(alignment: .bottomTrailing, xOffset: -10, yOffset: -18)
         }
     }
@@ -786,7 +849,7 @@ private struct PuddlePreviewView: View {
         let canvasSize = group.tier.canvasSize
         let diameter = group.tier.baseBubbleDiameter
         let placements = separatedPlacements(
-            from: placements(for: cards.count),
+            from: placements(),
             in: canvasSize,
             baseDiameter: diameter
         )
